@@ -1,0 +1,172 @@
+# HomeWizard P1 Meter Monitor & Analyzer
+
+A complete web-based system to monitor, store, and analyze your HomeWizard P1 meter data with real-time dashboard and AI-powered chat analysis.
+
+## 🚀 Quick Start
+
+### Web Dashboard (Recommended)
+```bash
+./start_web_monitor.sh
+```
+Then open: **http://localhost:5001**
+
+### Command Line Tools
+```bash
+./run_monitor.sh           # Terminal monitoring
+./run_analyze.sh           # Data analysis  
+./run_analyze.sh plot      # Generate plots
+```
+
+## 🜐 Web Dashboard Features
+
+- **Real-time monitoring** with automatic updates every minute
+- **Interactive charts** showing power consumption trends  
+- **Full-screen chart view** with advanced time controls
+- **Custom time ranges** - select any start/end period
+- **Chart markers** - annotate events like "turned pool heater off"
+- **Phase balance visualization** with color-coded bars
+- **Live cost calculations** and utilization metrics
+- **AI-powered chat** for intelligent data analysis
+- **Historical data** with selectable time periods (1H to 1M)
+- **Mobile-responsive** design for monitoring on any device
+- **Automated alerts** for phase imbalance and high loads
+- **Data persistence** - markers and annotations saved to database
+
+## 📊 What It Does
+
+### Monitor (`p1_monitor.py`)
+- ✅ Fetches real-time data from P1 meter every 60 seconds
+- ✅ Beautiful live display with power consumption, phase balance, costs
+- ✅ Stores all data to CSV file for analysis
+- ✅ Shows imbalance warnings and utilization
+
+### Analyzer (`p1_analyze.py`) 
+- 📈 Statistical analysis of consumption patterns
+- 💰 Cost calculations and projections  
+- ⚖️ Phase balance analysis over time
+- 📊 Trend analysis and recent data views
+- 📉 Generates plots (with matplotlib)
+
+## 🗃️ Data Storage
+
+Data is stored in two places depending on which monitor you run:
+
+- **CLI monitor** (`p1_monitor.py`) → `p1_data.csv`
+- **Web monitor** (`web_monitor.py`) → `p1_web_data.csv` **and** SQLite database `p1_data.db`
+  - `power_data` table: all readings (fast queries for charts)
+  - `markers` table: chart annotations (persisted across sessions)
+
+CSV fields:
+- Timestamp and datetime
+- Total power consumption (W)
+- Energy totals (kWh import/export)
+- Per-phase power, voltage, current
+- WiFi signal strength
+
+## 📈 Monitoring Examples
+
+**Live monitoring will show (example reading):**
+```
+⚡ POWER CONSUMPTION
+   Total: 5,341W (5.34 kW)
+
+📊 PHASE DISTRIBUTION
+   Phase 1: 2125W (40.0%) ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+   Phase 2:  593W (11.2%) ▓▓▓▓▓
+   Phase 3: 2597W (48.9%) ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+💰 COST ESTIMATE
+   Current rate: €1.34/hour
+   If sustained: €32.0/day
+```
+
+**Analysis will show trends:**
+- Average consumption over time
+- Peak usage hours
+- Phase balance evolution
+- Energy efficiency metrics
+
+## 🛠️ Technical Details
+
+**Requirements:**
+- Python 3.x with virtual environment (`p1_env/`)
+- HomeWizard P1 meter on local network (default: `http://192.168.11.35` — edit `p1_monitor.py` to change)
+- Dependencies: `requests`, `pandas`, `matplotlib`, `flask`, `flask-socketio`
+
+**Files:**
+
+*Core monitoring & analysis*
+- `p1_monitor.py` — P1 meter client + CLI monitor
+- `p1_analyze.py` — Data analysis script
+- `web_monitor.py` — Flask + SocketIO web dashboard (port 5001)
+- `pi_agent_integration.py` — AI chat backend for the dashboard
+- `status.py` — Quick status snapshot
+
+*Scripts*
+- `start_web_monitor.sh` — Launch the web dashboard
+- `run_monitor.sh` / `run_analyze.sh` — CLI convenience wrappers
+
+*Data & database*
+- `p1_data.csv` — CLI monitor data
+- `p1_web_data.csv` — Web monitor CSV mirror
+- `p1_data.db` — SQLite DB (readings + markers)
+- `init_markers_db.py` — Initialize the markers table
+- `test_markers.py` — Marker tests
+
+*Frontend*
+- `templates/dashboard.html`, `templates/chart_full.html`
+- `static/css/`, `static/js/`
+
+*Environment*
+- `p1_env/` — Python virtual environment
+
+## 🎯 Next Steps
+
+1. **Start collecting data**: Run `./run_monitor.sh` 
+2. **Let it run for a few hours** to see patterns
+3. **Check analysis**: Use `./run_analyze.sh` to see trends
+4. **View plots**: Use `./run_analyze.sh plot` for visual analysis
+5. **Plan phase rebalancing** based on the data collected
+
+## 📈 Advanced Chart Features
+
+### Full-Screen Chart View
+Click the expand button on any chart to open the full-screen view with:
+- **Custom time ranges**: Select any date/time period
+- **Quick periods**: 1H, 6H, 24H, 1W, 1M buttons
+- **Interactive markers**: Click anywhere to add annotations
+- **Live updates**: Auto-refresh for recent data
+- **Dark theme**: Optimized for extended viewing
+
+### Chart Markers
+Add contextual annotations to your power data:
+```
+📍 "Pool heater turned off" - See immediate power drop
+📍 "Heat pump maintenance" - Track efficiency changes  
+📍 "Solar panels installed" - Monitor generation
+📍 "EV charging" - Identify charging sessions
+```
+
+**To add a marker:**
+1. Click on any point in the chart
+2. Enter a label (e.g., "Pool heater off")
+3. Add optional description
+4. Choose a color
+5. Save - marker persists across sessions
+
+### Usage Examples
+- **Energy audits**: Mark appliance changes and track impact
+- **Troubleshooting**: Annotate when issues occurred
+- **Optimization**: Document efficiency improvements
+- **Maintenance**: Track service dates and performance
+
+The system will help you:
+- Track energy usage patterns  
+- Identify peak consumption times
+- Monitor phase balance improvements
+- Calculate actual costs vs estimates
+- Make data-driven decisions about electrical improvements
+
+---
+
+**💡 Pro Tip:** Run the monitor overnight to capture your heat pump cycling patterns and get realistic average consumption data!

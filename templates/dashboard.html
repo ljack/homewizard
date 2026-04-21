@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HomeWizard P1 Monitor</title>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            border-bottom: 3px solid #2a5298;
+        }
+        
+        .header h1 {
+            color: #1e3c72;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .header .status {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.5rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            color: #1e3c72;
+            font-weight: 600;
+        }
+        
+        .card-header i {
+            font-size: 1.2rem;
+        }
+        
+        .power-display {
+            grid-column: span 2;
+        }
+        
+        .big-number {
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 1rem 0;
+        }
+        
+        .power-number {
+            color: #e74c3c;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin: 1rem 0;
+        }
+        
+        .phase-bars {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .phase-bar {
+            flex: 1;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .phase-fill {
+            height: 100px;
+            transition: height 0.5s ease;
+            border-radius: 10px;
+        }
+        
+        .phase-l1 { background: #3498db; }
+        .phase-l2 { background: #2ecc71; }
+        .phase-l3 { background: #e74c3c; }
+        
+        .phase-label {
+            text-align: center;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2a5298;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        
+        .plug-card {
+            grid-column: span 3;
+        }
+
+        .plug-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .plug-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 0.8rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .plug-row.unaccounted {
+            background: #fff3cd;
+            border: 1px dashed #e6b800;
+        }
+
+        .plug-row.total {
+            background: #e8f0fd;
+            font-weight: 600;
+        }
+
+        .plug-label {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: #333;
+        }
+
+        .plug-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+            display: inline-block;
+        }
+
+        .plug-indicator.on  { background: #2ecc71; box-shadow: 0 0 6px rgba(46, 204, 113, 0.6); }
+        .plug-indicator.off { background: #bbb; }
+
+        .plug-power {
+            font-variant-numeric: tabular-nums;
+            color: #1e3c72;
+            font-weight: 600;
+        }
+
+        .plug-pct {
+            color: #666;
+            font-weight: 400;
+            font-size: 0.85em;
+            margin-left: 0.3rem;
+        }
+
+        .plug-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 3px;
+            margin-top: 0.4rem;
+            overflow: hidden;
+        }
+
+        .plug-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2a5298, #3498db);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .plug-meta {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 0.15rem;
+        }
+
+        .rescan-btn {
+            margin-left: auto;
+            background: none;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.8rem;
+            color: #444;
+            cursor: pointer;
+        }
+
+        .rescan-btn:hover { background: #f0f0f0; }
+
+        .chat-container {
+            grid-column: span 3;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            max-height: 280px;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            background: #2a5298;
+            color: white;
+            margin-left: auto;
+        }
+        
+        .message.agent {
+            background: white;
+            border: 1px solid #ddd;
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .chat-input button {
+            padding: 0.75rem 1.5rem;
+            background: #2a5298;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .chat-input button:hover {
+            background: #1e3c72;
+        }
+        
+        .alert {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid;
+        }
+        
+        .alert.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        
+        .alert.info {
+            background: #d1ecf1;
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-left: auto;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background: #2a5298;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1e3c72;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+            
+            .power-display,
+            .chat-container {
+                grid-column: span 1;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1><i class="fas fa-bolt"></i> HomeWizard P1 Monitor</h1>
+                <div class="status" id="status">Connecting...</div>
+            </div>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="startMonitoring()">
+                    <i class="fas fa-play"></i> Start
+                </button>
+                <button class="btn btn-secondary" onclick="stopMonitoring()">
+                    <i class="fas fa-stop"></i> Stop
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard">
+        <!-- Power Display -->
+        <div class="card power-display">
+            <div class="card-header">
+                <i class="fas fa-bolt"></i>
+                <span>Current Power Consumption</span>
+            </div>
+            <div class="big-number power-number" id="totalPower">---W</div>
+            <div style="text-align: center; color: #666; margin-bottom: 1rem;">
+                <span id="powerKW">--- kW</span> |
+                <span id="spotPrice">FI spot --.- c/kWh</span> |
+                <span id="costHour">€--- /hour</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalCurrent">---A</div>
+                    <div class="stat-label">Total Current</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="fuseUtil">---%</div>
+                    <div class="stat-label">Fuse Utilization</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalImport">--- kWh</div>
+                    <div class="stat-label">Total Import</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="wifiStrength">---%</div>
+                    <div class="stat-label">WiFi Signal</div>
+                </div>
+            </div>
+            
+            <div id="alerts"></div>
+        </div>
+
+        <!-- Phase Distribution -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-bar"></i>
+                <span>Phase Distribution</span>
+            </div>
+            <div class="phase-bars">
+                <div class="phase-bar">
+                    <div class="phase-fill phase-l1" id="phaseBar1"></div>
+                    <div class="phase-label">
+                        <div id="phase1Power">---W</div>
+                        <div>Phase 1</div>
+                    </div>
+                </div>
+                <div class="phase-bar">
+                    <div class="phase-fill phase-l2" id="phaseBar2"></div>
+                    <div class="phase-label">
+                        <div id="phase2Power">---W</div>
+                        <div>Phase 2</div>
+                    </div>
+                </div>
+                <div class="phase-bar">
+                    <div class="phase-fill phase-l3" id="phaseBar3"></div>
+                    <div class="phase-label">
+                        <div id="phase3Power">---W</div>
+                        <div>Phase 3</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="phaseImbalance">---W</div>
+                    <div class="stat-label">Imbalance</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="maxPhase">---</div>
+                    <div class="stat-label">Highest Phase</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Power Chart -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-line"></i>
+                <span>Power History</span>
+                <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+                    <select id="chartPeriod" onchange="changeChartPeriod()">
+                        <option value="1">1 Hour</option>
+                        <option value="6">6 Hours</option>
+                        <option value="24" selected>24 Hours</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="maximizeChart()" title="Full-screen chart">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="powerChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Voltage & Current -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-plug"></i>
+                <span>Electrical Parameters</span>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="voltage1">---V</div>
+                    <div class="stat-label">Voltage L1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="voltage2">---V</div>
+                    <div class="stat-label">Voltage L2</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="voltage3">---V</div>
+                    <div class="stat-label">Voltage L3</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="avgVoltage">---V</div>
+                    <div class="stat-label">Average</div>
+                </div>
+            </div>
+            
+            <div class="stats-grid" style="margin-top: 1rem;">
+                <div class="stat-item">
+                    <div class="stat-value" id="current1">---A</div>
+                    <div class="stat-label">Current L1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="current2">---A</div>
+                    <div class="stat-label">Current L2</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="current3">---A</div>
+                    <div class="stat-label">Current L3</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="powerFactor">---</div>
+                    <div class="stat-label">Est. Power Factor</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-calculator"></i>
+                <span>24h Statistics</span>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="avgPower">---W</div>
+                    <div class="stat-label">Average Power</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="maxPower">---W</div>
+                    <div class="stat-label">Peak Power</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="minPower">---W</div>
+                    <div class="stat-label">Minimum Power</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="dataPoints">---</div>
+                    <div class="stat-label">Data Points</div>
+                </div>
+            </div>
+            
+            <div class="stats-grid" style="margin-top: 1rem;">
+                <div class="stat-item">
+                    <div class="stat-value" id="dailyCost">€---</div>
+                    <div class="stat-label">Avg Day @ Current Price</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="monthlyCost">€---</div>
+                    <div class="stat-label">Avg Month @ Current Price</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mitsubishi ILP (heat pumps via MELCloud) -->
+        <div class="card plug-card">
+            <div class="card-header">
+                <i class="fas fa-fire"></i>
+                <span>Heat Pumps (Mitsubishi ILP)</span>
+                <span class="plug-meta" id="ilpOutdoorLabel" style="margin-left: auto; font-size: 0.85rem;"></span>
+            </div>
+            <div class="plug-list" id="ilpList">
+                <div class="plug-row"><div class="plug-label">Loading heat pumps…</div></div>
+            </div>
+        </div>
+
+        <!-- Smart Plug Breakdown (subset of P1 total) -->
+        <div class="card plug-card">
+            <div class="card-header">
+                <i class="fas fa-plug"></i>
+                <span>Consumption Sources (HS110 Smart Plugs)</span>
+                <button class="rescan-btn" onclick="rescanPlugs()" title="Scan LAN for new plugs">
+                    <i class="fas fa-sync"></i> Rescan
+                </button>
+            </div>
+            <div class="plug-list" id="plugList">
+                <div class="plug-row"><div class="plug-label">Loading plugs…</div></div>
+            </div>
+        </div>
+
+        <!-- AI Chat -->
+        <div class="card chat-container">
+            <div class="card-header">
+                <i class="fas fa-robot"></i>
+                <span>AI Power Analysis Chat</span>
+                <button class="rescan-btn" onclick="resetChat()" title="Clear conversation history">
+                    <i class="fas fa-eraser"></i> Reset
+                </button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message agent">
+                    <strong>🤖 AI Agent:</strong> Hi! Ask anything about your power consumption. I can query the database directly, do calculations, search the web, and combine them to answer open-ended questions like "what was my peak hour yesterday?", "how much does my fridge cost per month?", or "what's the current spot price and should I run the dishwasher now?".
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="chatInput" placeholder="Ask anything about your power data…" onkeypress="handleChatKeyPress(event)">
+                <button onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i> Send</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Global variables
+        let socket;
+        let powerChart;
+        let chartData = [];
+        let currentTimeRange = { hours: 24 };
+        let viewWindowMs = null;
+        let panFetchTimer = null;
+        const FALLBACK_PRICE_EUR_PER_KWH = 0.25;
+        let currentPricing = {
+            priceEurPerKwh: FALLBACK_PRICE_EUR_PER_KWH,
+            usingFallbackPrice: true,
+            spotPrice: null
+        };
+        let latestPlugs = [];      // most recent reading per plug
+        let latestTotalPowerW = 0; // P1 whole-house total for "unaccounted" math
+        let latestHeatPumps = [];  // Mitsubishi ILP latest
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSocket();
+            initializeChart();
+            loadSpotPrice();
+            loadInitialData();
+            loadStatistics();
+            loadPlugs();
+            setInterval(loadPlugs, 60000); // fallback refresh in case socket misses
+            setInterval(renderPlugs, 10000); // tick "Xs ago" labels without re-fetching
+            loadHeatPumps();
+            setInterval(loadHeatPumps, 120000); // MELCloud polled every 2 min server-side
+            setInterval(renderHeatPumps, 15000); // refresh "Xs ago" labels
+        });
+        
+        function initializeSocket() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                document.getElementById('status').textContent = 'Connected - Monitoring Active';
+                document.getElementById('status').style.color = '#2ecc71';
+            });
+            
+            socket.on('disconnect', function() {
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').style.color = '#e74c3c';
+            });
+            
+            socket.on('new_data', function(data) {
+                updateDisplayData(data);
+                loadStatistics();
+                // Don't yank the view if the user has panned into the past
+                if (!viewWindowMs) updateChart();
+            });
+
+            socket.on('kasa_data', function(payload) {
+                latestPlugs = (payload && payload.readings) || [];
+                renderPlugs();
+            });
+
+            socket.on('melcloud_data', function(payload) {
+                latestHeatPumps = (payload && payload.readings) || [];
+                renderHeatPumps();
+            });
+        }
+
+        function loadHeatPumps() {
+            fetch('/api/melcloud/devices')
+                .then(r => r.json())
+                .then(payload => {
+                    latestHeatPumps = (payload && payload.devices) || [];
+                    renderHeatPumps();
+                })
+                .catch(err => console.error('melcloud fetch failed', err));
+        }
+
+        function renderHeatPumps() {
+            const list = document.getElementById('ilpList');
+            if (!list) return;
+            if (!latestHeatPumps.length) {
+                list.innerHTML = '<div class="plug-row"><div class="plug-label">No heat pumps seen yet. Check MELCLOUD_USER / MELCLOUD_PASS.</div></div>';
+                document.getElementById('ilpOutdoorLabel').textContent = '';
+                return;
+            }
+            const sorted = [...latestHeatPumps].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            const rows = sorted.map(d => {
+                const on = d.power ? 'on' : 'off';
+                const mode = d.operation_mode || '—';
+                const room = (d.room_temperature != null) ? `${d.room_temperature.toFixed(1)}°C` : '—';
+                const target = (d.target_temperature != null) ? `${d.target_temperature.toFixed(1)}°C` : '—';
+                const outdoor = (d.outdoor_temperature != null) ? `${d.outdoor_temperature.toFixed(1)}°C` : '—';
+                const kwh = (d.total_energy_consumed_kwh != null) ? `${d.total_energy_consumed_kwh.toFixed(1)} kWh total` : '';
+                const estW = (d.estimated_power_w != null) ? `${d.estimated_power_w.toFixed(0)} W (est.)` : '';
+                const tsNote = formatPlugTimestamp(d.timestamp);
+                return `
+                    <div class="plug-row">
+                        <div style="flex: 1;">
+                            <div class="plug-label">
+                                <span class="plug-indicator ${on}"></span>
+                                <strong>${escapeHtml(d.name || '(unnamed)')}</strong>
+                                <span class="plug-meta">${mode} · room ${room} → set ${target} · outdoor ${outdoor}${tsNote ? ' · ' + tsNote : ''}</span>
+                            </div>
+                            <div class="plug-meta" style="margin-top:0.15rem">${kwh}${estW ? ' · ' + estW : ''}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            list.innerHTML = rows;
+
+            // Show outdoor temp in header (take first non-null)
+            const outdoor = sorted.map(d => d.outdoor_temperature).find(t => t != null);
+            const label = document.getElementById('ilpOutdoorLabel');
+            if (label) {
+                label.textContent = outdoor != null ? `🌡️ Outdoor ${outdoor.toFixed(1)}°C` : '';
+            }
+        }
+
+        function loadPlugs() {
+            fetch('/api/kasa/plugs')
+                .then(r => r.json())
+                .then(payload => {
+                    latestPlugs = (payload && payload.plugs) || [];
+                    renderPlugs();
+                })
+                .catch(err => console.error('plugs fetch failed', err));
+        }
+
+        function rescanPlugs() {
+            const btn = document.querySelector('.rescan-btn');
+            if (btn) btn.disabled = true;
+            fetch('/api/kasa/discover', { method: 'POST' })
+                .then(r => r.json())
+                .then(() => loadPlugs())
+                .catch(err => console.error('rescan failed', err))
+                .finally(() => { if (btn) btn.disabled = false; });
+        }
+
+        function renderPlugs() {
+            const list = document.getElementById('plugList');
+            if (!list) return;
+
+            if (!latestPlugs.length) {
+                list.innerHTML = '<div class="plug-row"><div class="plug-label">No plugs discovered. Click Rescan to scan the LAN.</div></div>';
+                return;
+            }
+
+            const sorted = [...latestPlugs].sort((a, b) => (b.power_w || 0) - (a.power_w || 0));
+            const plugsSum = sorted.reduce((acc, p) => acc + (p.power_w || 0), 0);
+            const totalW = latestTotalPowerW || 0;
+            const unaccountedW = Math.max(totalW - plugsSum, 0);
+            const denom = totalW > 0 ? totalW : Math.max(plugsSum, 1);
+
+            const rows = [];
+
+            // Total row first (from P1 meter)
+            if (totalW > 0) {
+                rows.push(`
+                    <div class="plug-row total">
+                        <div class="plug-label">
+                            <i class="fas fa-bolt"></i> Whole house (P1 meter)
+                        </div>
+                        <div class="plug-power">${Math.round(totalW).toLocaleString()} W</div>
+                    </div>
+                `);
+            }
+
+            // Each plug (biggest first)
+            for (const p of sorted) {
+                const w = p.power_w || 0;
+                const pct = (w / denom) * 100;
+                const tsNote = formatPlugTimestamp(p.timestamp);
+                rows.push(`
+                    <div class="plug-row">
+                        <div style="flex: 1;">
+                            <div class="plug-label">
+                                <span class="plug-indicator ${p.is_on ? 'on' : 'off'}"></span>
+                                <strong>${escapeHtml(p.alias || p.mac)}</strong>
+                                <span class="plug-meta">${p.ip || ''}${tsNote ? ' · ' + tsNote : ''}</span>
+                            </div>
+                            <div class="plug-bar"><div class="plug-bar-fill" style="width: ${Math.min(pct, 100).toFixed(1)}%"></div></div>
+                        </div>
+                        <div class="plug-power" style="margin-left: 1rem;">
+                            ${w.toFixed(1)} W
+                            <span class="plug-pct">(${pct.toFixed(1)}%)</span>
+                        </div>
+                    </div>
+                `);
+            }
+
+            // Unaccounted row (everything the plugs don't measure)
+            if (totalW > 0) {
+                const pct = (unaccountedW / denom) * 100;
+                rows.push(`
+                    <div class="plug-row unaccounted">
+                        <div style="flex: 1;">
+                            <div class="plug-label">
+                                <i class="fas fa-question-circle"></i>
+                                <strong>Unaccounted</strong>
+                                <span class="plug-meta">everything not on a smart plug yet</span>
+                            </div>
+                            <div class="plug-bar"><div class="plug-bar-fill" style="width: ${Math.min(pct, 100).toFixed(1)}%; background: linear-gradient(90deg, #e6b800, #f39c12);"></div></div>
+                        </div>
+                        <div class="plug-power" style="margin-left: 1rem;">
+                            ${unaccountedW.toFixed(0)} W
+                            <span class="plug-pct">(${pct.toFixed(1)}%)</span>
+                        </div>
+                    </div>
+                `);
+            }
+
+            list.innerHTML = rows.join('');
+        }
+
+        function formatPlugTimestamp(ts) {
+            if (!ts) return '';
+            const ageSec = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+            const d = new Date(ts * 1000);
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            const ss = String(d.getSeconds()).padStart(2, '0');
+            const clock = `${hh}:${mm}:${ss}`;
+            let age;
+            if (ageSec < 90)        age = `${ageSec}s ago`;
+            else if (ageSec < 3600) age = `${Math.floor(ageSec / 60)}m ago`;
+            else if (ageSec < 86400) age = `${Math.floor(ageSec / 3600)}h ago`;
+            else                    age = `${Math.floor(ageSec / 86400)}d ago`;
+            return `${clock} (${age})`;
+        }
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function applyPricingData(payload) {
+            const spot = payload && payload.spot_price ? payload.spot_price : null;
+            const hasExplicitPrice = payload && typeof payload.price_eur_per_kwh === 'number';
+            const spotHasPrice = spot && typeof spot.price_eur_per_kwh === 'number';
+            const priceEurPerKwh = hasExplicitPrice
+                ? payload.price_eur_per_kwh
+                : (spotHasPrice ? spot.price_eur_per_kwh : FALLBACK_PRICE_EUR_PER_KWH);
+            const usingFallbackPrice = payload && typeof payload.using_fallback_price === 'boolean'
+                ? payload.using_fallback_price
+                : !Boolean(spot && spot.available);
+
+            currentPricing = {
+                priceEurPerKwh: priceEurPerKwh,
+                usingFallbackPrice: usingFallbackPrice,
+                spotPrice: spot
+            };
+
+            const spotPriceEl = document.getElementById('spotPrice');
+            if (!spotPriceEl) return;
+
+            if (spot && spot.available && typeof spot.price_cents_per_kwh === 'number') {
+                const staleText = spot.stale ? ' (cached)' : '';
+                spotPriceEl.textContent = `FI spot ${spot.price_cents_per_kwh.toFixed(2)} c/kWh${staleText}`;
+                spotPriceEl.title = `Source: ${spot.source || 'unknown'}${spot.effective_at ? `\nEffective: ${spot.effective_at}` : ''}`;
+            } else {
+                spotPriceEl.textContent = `FI spot ${(priceEurPerKwh * 100).toFixed(2)} c/kWh (fallback)`;
+                spotPriceEl.title = 'Spot price unavailable, using fallback price';
+            }
+        }
+
+        function loadSpotPrice() {
+            fetch('/api/spot-price')
+                .then(response => response.json())
+                .then(data => applyPricingData(data))
+                .catch(error => console.error('Error loading spot price:', error));
+        }
+        
+        function updateDisplayData(data) {
+            applyPricingData(data);
+
+            // Power consumption
+            const power = data.active_power_w || 0;
+            latestTotalPowerW = power;
+            renderPlugs();
+            document.getElementById('totalPower').textContent = power.toLocaleString() + 'W';
+            document.getElementById('powerKW').textContent = (power / 1000).toFixed(2) + ' kW';
+            document.getElementById('costHour').textContent = '€' + (power * currentPricing.priceEurPerKwh / 1000).toFixed(2) + '/hour';
+            
+            // Phase distribution
+            const l1 = data.active_power_l1_w || 0;
+            const l2 = data.active_power_l2_w || 0;
+            const l3 = data.active_power_l3_w || 0;
+            const maxPhase = Math.max(l1, l2, l3);
+            
+            document.getElementById('phase1Power').textContent = l1 + 'W';
+            document.getElementById('phase2Power').textContent = l2 + 'W';
+            document.getElementById('phase3Power').textContent = l3 + 'W';
+            
+            // Phase bars (scale to 100px max)
+            const scale = maxPhase > 0 ? 100 / maxPhase : 0;
+            document.getElementById('phaseBar1').style.height = (l1 * scale) + 'px';
+            document.getElementById('phaseBar2').style.height = (l2 * scale) + 'px';
+            document.getElementById('phaseBar3').style.height = (l3 * scale) + 'px';
+            
+            // Imbalance
+            const imbalance = maxPhase - Math.min(l1, l2, l3);
+            document.getElementById('phaseImbalance').textContent = imbalance + 'W';
+            
+            const maxPhaseNum = l1 === maxPhase ? '1' : (l2 === maxPhase ? '2' : '3');
+            document.getElementById('maxPhase').textContent = 'Phase ' + maxPhaseNum;
+            
+            // Electrical parameters
+            document.getElementById('voltage1').textContent = (data.active_voltage_l1_v || 0).toFixed(1) + 'V';
+            document.getElementById('voltage2').textContent = (data.active_voltage_l2_v || 0).toFixed(1) + 'V';
+            document.getElementById('voltage3').textContent = (data.active_voltage_l3_v || 0).toFixed(1) + 'V';
+            
+            const avgVoltage = ((data.active_voltage_l1_v || 0) + (data.active_voltage_l2_v || 0) + (data.active_voltage_l3_v || 0)) / 3;
+            document.getElementById('avgVoltage').textContent = avgVoltage.toFixed(1) + 'V';
+            
+            document.getElementById('current1').textContent = (data.active_current_l1_a || 0).toFixed(1) + 'A';
+            document.getElementById('current2').textContent = (data.active_current_l2_a || 0).toFixed(1) + 'A';
+            document.getElementById('current3').textContent = (data.active_current_l3_a || 0).toFixed(1) + 'A';
+            
+            // Total current and fuse utilization
+            const totalCurrent = data.active_current_a || 0;
+            document.getElementById('totalCurrent').textContent = totalCurrent.toFixed(1) + 'A';
+            document.getElementById('fuseUtil').textContent = (totalCurrent / 35 * 100).toFixed(1) + '%';
+            
+            // Other stats
+            document.getElementById('totalImport').textContent = (data.total_power_import_kwh || 0).toFixed(1) + ' kWh';
+            document.getElementById('wifiStrength').textContent = (data.wifi_strength || 0) + '%';
+            
+            // Power factor estimation
+            const apparentPower = avgVoltage * totalCurrent;
+            const powerFactor = apparentPower > 0 ? (power / apparentPower).toFixed(2) : '---';
+            document.getElementById('powerFactor').textContent = powerFactor;
+            
+            // Alerts
+            updateAlerts(data);
+        }
+        
+        function updateAlerts(data) {
+            const alertsDiv = document.getElementById('alerts');
+            let alerts = [];
+            
+            const l1 = data.active_power_l1_w || 0;
+            const l2 = data.active_power_l2_w || 0;
+            const l3 = data.active_power_l3_w || 0;
+            const imbalance = Math.max(l1, l2, l3) - Math.min(l1, l2, l3);
+            
+            if (imbalance > 1500) {
+                alerts.push({
+                    type: 'warning',
+                    message: '⚠️ High phase imbalance detected (' + imbalance + 'W). Consider redistributing loads.'
+                });
+            }
+            
+            const totalCurrent = data.active_current_a || 0;
+            if (totalCurrent > 30) {
+                alerts.push({
+                    type: 'warning',
+                    message: '⚠️ High current draw (' + totalCurrent.toFixed(1) + 'A). Monitor for overload.'
+                });
+            }
+            
+            const power = data.active_power_w || 0;
+            if (power > 6000) {
+                alerts.push({
+                    type: 'info',
+                    message: '🔥 High power consumption (' + (power/1000).toFixed(1) + 'kW). Major appliances active.'
+                });
+            }
+            
+            alertsDiv.innerHTML = alerts.map(alert => 
+                `<div class="alert ${alert.type}">${alert.message}</div>`
+            ).join('');
+        }
+        
+        function initializeChart() {
+            const ctx = document.getElementById('powerChart').getContext('2d');
+            powerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Total Power (W)',
+                        data: [],
+                        borderColor: '#2a5298',
+                        backgroundColor: 'rgba(42, 82, 152, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Power (W)'
+                            }
+                        },
+                        x: {
+                            type: 'time',
+                            time: {
+                                displayFormats: {
+                                    minute: 'HH:mm',
+                                    hour: 'HH:mm',
+                                    day: 'MM/dd HH:mm'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            attachPanGesture(ctx.canvas);
+            // Seed currentTimeRange from the dropdown's initial value
+            const sel = document.getElementById('chartPeriod');
+            if (sel) currentTimeRange = { hours: parseInt(sel.value) };
+        }
+        
+        function changeChartPeriod() {
+            const hours = parseInt(document.getElementById('chartPeriod').value);
+            currentTimeRange = { hours };
+            resetPanState();
+            updateChart();
+        }
+        
+        function updateChart() {
+            let url;
+            if (currentTimeRange.start && currentTimeRange.end) {
+                url = `/api/history/range?start=${currentTimeRange.start}&end=${currentTimeRange.end}`;
+            } else {
+                const hours = currentTimeRange.hours || parseInt(document.getElementById('chartPeriod').value);
+                url = `/api/history/${hours}`;
+            }
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const points = data.map(point => ({
+                        x: new Date(point.datetime),
+                        y: point.total_power_w
+                    })).reverse();
+                    powerChart.data.datasets[0].data = points;
+                    powerChart.update('none');
+                })
+                .catch(error => console.error('Error updating chart:', error));
+        }
+        
+        // --- Two-finger horizontal pan -----------------------------------
+        function resolveCurrentWindowMs() {
+            if (viewWindowMs) return { ...viewWindowMs };
+            const now = Date.now();
+            if (currentTimeRange.hours) {
+                return { start: now - currentTimeRange.hours * 3600 * 1000, end: now };
+            }
+            if (currentTimeRange.start && currentTimeRange.end) {
+                return {
+                    start: new Date(currentTimeRange.start).getTime(),
+                    end: new Date(currentTimeRange.end).getTime()
+                };
+            }
+            return null;
+        }
+        
+        const MIN_SPAN_MS = 60 * 1000;
+        const MAX_SPAN_MS = 90 * 24 * 3600 * 1000;
+        
+        function commitWindow(win) {
+            viewWindowMs = win;
+            powerChart.options.scales.x.min = win.start;
+            powerChart.options.scales.x.max = win.end;
+            powerChart.update('none');
+            
+            currentTimeRange = {
+                start: new Date(win.start).toISOString(),
+                end: new Date(win.end).toISOString()
+            };
+            
+            clearTimeout(panFetchTimer);
+            panFetchTimer = setTimeout(() => { updateChart(); }, 200);
+        }
+        
+        function applyPan(deltaPx) {
+            const win = resolveCurrentWindowMs();
+            if (!win) return;
+            const area = powerChart.chartArea;
+            if (!area) return;
+            const width = area.right - area.left;
+            if (width <= 0) return;
+            const span = win.end - win.start;
+            const shift = deltaPx * (span / width);
+            win.start += shift;
+            win.end += shift;
+            commitWindow(win);
+        }
+        
+        function applyZoom(deltaY, cursorOffsetX) {
+            const win = resolveCurrentWindowMs();
+            if (!win) return;
+            const area = powerChart.chartArea;
+            if (!area) return;
+            const width = area.right - area.left;
+            if (width <= 0) return;
+            
+            const factor = Math.exp(deltaY * 0.01);
+            const span = win.end - win.start;
+            let newSpan = span * factor;
+            newSpan = Math.max(MIN_SPAN_MS, Math.min(MAX_SPAN_MS, newSpan));
+            if (newSpan === span) return;
+            
+            const cursorPx = Math.max(0, Math.min(width, cursorOffsetX - area.left));
+            const frac = cursorPx / width;
+            const cursorTime = win.start + span * frac;
+            win.start = cursorTime - newSpan * frac;
+            win.end = cursorTime + newSpan * (1 - frac);
+            commitWindow(win);
+        }
+        
+        function attachPanGesture(canvas) {
+            canvas.addEventListener('wheel', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    if (!e.deltaY) return;
+                    e.preventDefault();
+                    applyZoom(e.deltaY, e.offsetX);
+                    return;
+                }
+                let dx = 0;
+                if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                    dx = e.deltaX;
+                } else if (e.shiftKey && e.deltaY) {
+                    dx = e.deltaY;
+                } else {
+                    return;
+                }
+                if (dx === 0) return;
+                e.preventDefault();
+                applyPan(dx);
+            }, { passive: false });
+            
+            let pinchState = null;
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    const rect = canvas.getBoundingClientRect();
+                    const [a, b] = e.touches;
+                    pinchState = {
+                        dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+                        centerX: ((a.clientX + b.clientX) / 2) - rect.left
+                    };
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => {
+                if (pinchState && e.touches.length === 2) {
+                    const [a, b] = e.touches;
+                    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+                    if (dist > 0 && pinchState.dist > 0) {
+                        const deltaY = -Math.log(dist / pinchState.dist) * 100;
+                        applyZoom(deltaY, pinchState.centerX);
+                        pinchState.dist = dist;
+                    }
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            canvas.addEventListener('touchend', () => { pinchState = null; });
+            canvas.addEventListener('touchcancel', () => { pinchState = null; });
+        }
+        
+        function resetPanState() {
+            viewWindowMs = null;
+            if (powerChart && powerChart.options && powerChart.options.scales && powerChart.options.scales.x) {
+                delete powerChart.options.scales.x.min;
+                delete powerChart.options.scales.x.max;
+            }
+        }
+        
+        function loadStatistics() {
+            fetch('/api/stats/24')
+                .then(response => response.json())
+                .then(stats => {
+                    applyPricingData(stats);
+                    document.getElementById('avgPower').textContent = (stats.avg_power || 0).toLocaleString() + 'W';
+                    document.getElementById('maxPower').textContent = (stats.max_power || 0).toLocaleString() + 'W';
+                    document.getElementById('minPower').textContent = (stats.min_power || 0).toLocaleString() + 'W';
+                    document.getElementById('dataPoints').textContent = stats.data_points || 0;
+                    
+                    const dailyCost = typeof stats.est_daily_cost_eur === 'number'
+                        ? stats.est_daily_cost_eur
+                        : ((stats.avg_power || 0) * 24 * currentPricing.priceEurPerKwh / 1000);
+                    const monthlyCost = typeof stats.est_monthly_cost_eur === 'number'
+                        ? stats.est_monthly_cost_eur
+                        : (dailyCost * 30);
+                    document.getElementById('dailyCost').textContent = '€' + dailyCost.toFixed(1);
+                    document.getElementById('monthlyCost').textContent = '€' + monthlyCost.toFixed(0);
+                })
+                .catch(error => console.error('Error loading statistics:', error));
+        }
+        
+        function loadInitialData() {
+            fetch('/api/latest')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && Object.keys(data).length > 0 && typeof data.active_power_w !== 'undefined') {
+                        updateDisplayData(data);
+                    }
+                })
+                .catch(error => console.error('Error loading initial data:', error));
+        }
+        
+        function getChatSessionId() {
+            let id = localStorage.getItem('chatSessionId');
+            // Claude CLI requires a valid UUID for --session-id
+            const isUuid = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+            if (!isUuid) {
+                id = (crypto.randomUUID && crypto.randomUUID()) || (
+                    // Fallback generator for older browsers
+                    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                        const r = Math.random() * 16 | 0;
+                        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                    })
+                );
+                localStorage.setItem('chatSessionId', id);
+            }
+            return id;
+        }
+
+        function resetChat() {
+            const msgs = document.getElementById('chatMessages');
+            msgs.innerHTML = '';
+            addChatMessage('agent', 'Conversation cleared. What would you like to know?');
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message: '(reset)', session_id: getChatSessionId(), reset: true })
+            }).catch(() => {});
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addChatMessage('user', message);
+            input.value = '';
+
+            const thinkingId = addChatMessage('agent', '<em>thinking…</em>', {html: true, pending: true});
+
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message: message, session_id: getChatSessionId() })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const target = document.getElementById(thinkingId);
+                const calls = (data.tool_calls || []).length;
+                const agent = data.agent === 'claude'
+                    ? `<span class="plug-meta">${calls} tool call${calls === 1 ? '' : 's'}${data.usage && data.usage.cache_read_input_tokens ? ' · cache hit' : ''}</span>`
+                    : (data.agent === 'fallback_templates'
+                        ? `<span class="plug-meta" title="${escapeHtml(data.hint || '')}">fallback mode</span>`
+                        : '');
+                const text = data.response || data.error || 'No response.';
+                if (target) {
+                    target.innerHTML = `<strong>🤖 AI Agent:</strong> ${escapeHtml(text).replace(/\n/g, '<br>')} ${agent}`;
+                } else {
+                    addChatMessage('agent', text);
+                }
+            })
+            .catch(error => {
+                const target = document.getElementById(thinkingId);
+                if (target) target.innerHTML = '<strong>🤖 AI Agent:</strong> Error contacting agent. See console.';
+                console.error('Chat error:', error);
+            });
+        }
+        
+        function addChatMessage(sender, message, opts) {
+            opts = opts || {};
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            const id = 'msg-' + Math.random().toString(36).slice(2);
+            messageDiv.id = id;
+            messageDiv.className = `message ${sender}`;
+            const safe = opts.html ? message : escapeHtml(message).replace(/\n/g, '<br>');
+            if (sender === 'user') {
+                messageDiv.innerHTML = `<strong>👤 You:</strong> ${safe}`;
+            } else {
+                messageDiv.innerHTML = `<strong>🤖 AI Agent:</strong> ${safe}`;
+            }
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return id;
+        }
+        
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+        
+        function startMonitoring() {
+            fetch('/start_monitoring')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('status').textContent = data.status;
+                    document.getElementById('status').style.color = '#2ecc71';
+                })
+                .catch(error => console.error('Error starting monitoring:', error));
+        }
+        
+        function stopMonitoring() {
+            fetch('/stop_monitoring')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('status').textContent = data.status;
+                    document.getElementById('status').style.color = '#e74c3c';
+                })
+                .catch(error => console.error('Error stopping monitoring:', error));
+        }
+        
+        function maximizeChart() {
+            window.open('/chart', '_blank');
+        }
+        
+        // Auto-refresh statistics every 5 minutes
+        setInterval(loadStatistics, 5 * 60 * 1000);
+    </script>
+</body>
+</html>

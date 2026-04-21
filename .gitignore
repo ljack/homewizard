@@ -1,0 +1,10 @@
+.env
+.env.local
+*.log
+__pycache__/
+p1_env/
+.claude/
+p1_data.db
+p1_data.csv
+p1_web_data.csv
+p1_plot_*.png

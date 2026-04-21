@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HomeWizard P1 Power Chart</title>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- Annotation plugin handled inline -->
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: rgba(0,0,0,0.8);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #333;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            color: #fff;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .time-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .time-selector label {
+            color: #ccc;
+            font-size: 0.9rem;
+        }
+        
+        .time-selector input, .time-selector select {
+            padding: 0.5rem;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #333;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background: #2a5298;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1e3c72;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .chart-container {
+            height: calc(100vh - 80px);
+            position: relative;
+            padding: 1rem;
+        }
+        
+        #powerChart {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+        
+        .marker-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+        
+        .marker-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .marker-form {
+            background: #333;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+        
+        .marker-form h3 {
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #ccc;
+        }
+        
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #222;
+            color: #fff;
+            font-family: inherit;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            height: 80px;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin-left: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .status.connected {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+        
+        .status.disconnected {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+        
+        .marker-legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 1rem;
+            border-radius: 8px;
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .marker-legend h4 {
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+        
+        .marker-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.35rem;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.12s ease;
+        }
+        
+        .marker-item:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+        
+        .marker-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        
+        .marker-text {
+            flex: 1;
+            color: #ccc;
+        }
+        
+        .marker-delete {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            padding: 0;
+            font-size: 0.8rem;
+        }
+        
+        .quick-periods {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .quick-period {
+            padding: 0.25rem 0.5rem;
+            background: #444;
+            border: 1px solid #666;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: #ccc;
+            transition: all 0.3s;
+        }
+        
+        .quick-period.active {
+            background: #2a5298;
+            color: #fff;
+            border-color: #2a5298;
+        }
+        
+        .quick-period:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div>
+            <h1><i class="fas fa-chart-line"></i> Power History Chart</h1>
+            <span class="status" id="status">Connecting...</span>
+        </div>
+        <div class="controls">
+            <div class="quick-periods">
+                <span class="quick-period" data-hours="1">1H</span>
+                <span class="quick-period" data-hours="6">6H</span>
+                <span class="quick-period active" data-hours="24">24H</span>
+                <span class="quick-period" data-hours="168">1W</span>
+                <span class="quick-period" data-hours="720">1M</span>
+            </div>
+            
+            <div class="time-selector">
+                <label>From:</label>
+                <input type="datetime-local" id="startTime">
+                <label>To:</label>
+                <input type="datetime-local" id="endTime">
+                <button class="btn btn-primary" onclick="updateCustomRange()">
+                    <i class="fas fa-search"></i> Load
+                </button>
+            </div>
+            
+            <button class="btn btn-secondary" onclick="toggleSpotPrice()" id="spotPriceBtn" title="Toggle spot price overlay">
+                <i class="fas fa-euro-sign"></i> Price
+            </button>
+
+            <button class="btn btn-secondary" onclick="togglePlugs()" id="plugsBtn" title="Stack smart plug consumption under the P1 total">
+                <i class="fas fa-plug"></i> Plugs
+            </button>
+
+            <button class="btn btn-secondary" onclick="addMarker()" id="addMarkerBtn">
+                <i class="fas fa-map-marker-alt"></i> Add Marker
+            </button>
+
+            <button class="btn btn-secondary" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+        </div>
+    </header>
+
+    <main class="chart-container">
+        <canvas id="powerChart"></canvas>
+        
+        <div class="marker-legend" id="markerLegend">
+            <h4>Markers</h4>
+            <div id="markerList">
+                <div class="marker-text" style="color: #666; font-style: italic;">No markers</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Marker Modal -->
+    <div class="marker-modal" id="markerModal">
+        <div class="marker-form">
+            <h3>Add Chart Marker</h3>
+            <div class="form-group">
+                <label>Time:</label>
+                <input type="text" id="markerTime" readonly>
+            </div>
+            <div class="form-group">
+                <label>Label:</label>
+                <input type="text" id="markerLabel" placeholder="e.g., Pool heater off">
+            </div>
+            <div class="form-group">
+                <label>Description:</label>
+                <textarea id="markerDescription" placeholder="Optional detailed description..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Color:</label>
+                <input type="color" id="markerColor" value="#ff6b6b">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeMarkerModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveMarker()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let socket;
+        let powerChart;
+        let currentMarkers = [];
+        let highlightedMarkerId = null;
+        let selectedTimestamp = null;
+        let currentTimeRange = { hours: 24 };
+        let viewWindowMs = null;       // { start, end } in ms – active when panning
+        let panFetchTimer = null;      // debounce for refetching data after pan
+        let showSpotPrice = localStorage.getItem('showSpotPrice') === '1';
+        let currentSpotSeries = [];
+        const SPOT_PRICE_LABEL = 'Spot price (c/kWh)';
+        let showPlugs = localStorage.getItem('showPlugs') === '1';
+        let currentBreakdown = null;
+        const PLUG_STACK_ID = 'consumption';
+        const UNACCOUNTED_LABEL = 'Unaccounted';
+        // Stable palette for plug stacks
+        const PLUG_COLORS = [
+            '#2ecc71', '#9b59b6', '#1abc9c', '#e67e22', '#3498db',
+            '#e91e63', '#00bcd4', '#8bc34a', '#ff9800', '#607d8b'
+        ];
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSocket();
+            initializeChart();
+            setupTimeControls();
+            updateSpotPriceButton();
+            updatePlugsButton();
+            loadData();
+        });
+        
+        function initializeSocket() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                document.getElementById('status').textContent = 'Connected - Live Updates';
+                document.getElementById('status').className = 'status connected';
+            });
+            
+            socket.on('disconnect', function() {
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').className = 'status disconnected';
+            });
+            
+            socket.on('new_data', function(data) {
+                // Auto-refresh if showing recent data (last 6 hours)
+                if (currentTimeRange.hours && currentTimeRange.hours <= 6) {
+                    loadData();
+                }
+            });
+        }
+        
+        function initializeChart() {
+            const ctx = document.getElementById('powerChart').getContext('2d');
+            powerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Total Power (W)',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                displayFormats: {
+                                    minute: 'HH:mm',
+                                    hour: 'HH:mm',
+                                    day: 'MM/dd HH:mm'
+                                }
+                            },
+                            ticks: {
+                                color: '#ccc',
+                                maxTicksLimit: 20
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Power (W)',
+                                color: '#ccc'
+                            },
+                            ticks: {
+                                color: '#ccc'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
+                            }
+                        },
+                        y1: {
+                            position: 'right',
+                            display: false,
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Spot price (c/kWh, incl. VAT)',
+                                color: '#f1c40f'
+                            },
+                            ticks: {
+                                color: '#f1c40f'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#ccc'
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#3498db',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset && context.dataset.label;
+                                    if (label === 'Markers' && context.raw && context.raw.marker) {
+                                        const marker = context.raw.marker;
+                                        return [`📍 ${marker.label}`, marker.description || ''].filter(Boolean);
+                                    }
+                                    if (label === SPOT_PRICE_LABEL) {
+                                        return `Spot: ${context.parsed.y.toFixed(2)} c/kWh`;
+                                    }
+                                    return `Power: ${context.parsed.y}W`;
+                                }
+                            }
+                        }
+                    },
+                    onHover: (event, activeElements) => {
+                        ctx.canvas.style.cursor = activeElements.length > 0 ? 'pointer' : 'crosshair';
+                    },
+                    onClick: (event) => {
+                        const points = powerChart.getElementsAtEventForMode(event, 'nearest', { intersect: false }, true);
+                        if (points.length > 0) {
+                            const point = points[0];
+                            const ds = powerChart.data.datasets[point.datasetIndex];
+                            // Only allow marker placement on the power line, not overlays
+                            if (!ds || ds.label !== 'Total Power (W)') return;
+                            const timestamp = ds.data[point.index].x;
+                            selectedTimestamp = new Date(timestamp).getTime() / 1000;
+                            openMarkerModal();
+                        }
+                    }
+                }
+            });
+            attachPanGesture(ctx.canvas);
+        }
+        
+        // --- Two-finger horizontal pan -----------------------------------
+        function resolveCurrentWindowMs() {
+            if (viewWindowMs) return { ...viewWindowMs };
+            const now = Date.now();
+            if (currentTimeRange.hours) {
+                return { start: now - currentTimeRange.hours * 3600 * 1000, end: now };
+            }
+            if (currentTimeRange.start && currentTimeRange.end) {
+                return {
+                    start: new Date(currentTimeRange.start).getTime(),
+                    end: new Date(currentTimeRange.end).getTime()
+                };
+            }
+            return null;
+        }
+        
+        const MIN_SPAN_MS = 60 * 1000;                  // 1 minute
+        const MAX_SPAN_MS = 90 * 24 * 3600 * 1000;      // 90 days
+        
+        function commitWindow(win) {
+            viewWindowMs = win;
+            powerChart.options.scales.x.min = win.start;
+            powerChart.options.scales.x.max = win.end;
+            powerChart.update('none');
+            
+            document.querySelectorAll('.quick-period').forEach(b => b.classList.remove('active'));
+            document.getElementById('startTime').value = formatDateTimeLocal(new Date(win.start));
+            document.getElementById('endTime').value = formatDateTimeLocal(new Date(win.end));
+            currentTimeRange = {
+                start: new Date(win.start).toISOString(),
+                end: new Date(win.end).toISOString()
+            };
+            
+            clearTimeout(panFetchTimer);
+            panFetchTimer = setTimeout(() => { loadData(); }, 200);
+        }
+        
+        function applyPan(deltaPx) {
+            const win = resolveCurrentWindowMs();
+            if (!win) return;
+            const area = powerChart.chartArea;
+            if (!area) return;
+            const width = area.right - area.left;
+            if (width <= 0) return;
+            const span = win.end - win.start;
+            const shift = deltaPx * (span / width);
+            win.start += shift;
+            win.end += shift;
+            commitWindow(win);
+        }
+        
+        function applyZoom(deltaY, cursorOffsetX) {
+            const win = resolveCurrentWindowMs();
+            if (!win) return;
+            const area = powerChart.chartArea;
+            if (!area) return;
+            const width = area.right - area.left;
+            if (width <= 0) return;
+            
+            // Pinch out (fingers spread) → deltaY<0 → zoom in (smaller span)
+            const factor = Math.exp(deltaY * 0.01);
+            const span = win.end - win.start;
+            let newSpan = span * factor;
+            newSpan = Math.max(MIN_SPAN_MS, Math.min(MAX_SPAN_MS, newSpan));
+            if (newSpan === span) return;
+            
+            const cursorPx = Math.max(0, Math.min(width, cursorOffsetX - area.left));
+            const frac = cursorPx / width;
+            const cursorTime = win.start + span * frac;
+            win.start = cursorTime - newSpan * frac;
+            win.end = cursorTime + newSpan * (1 - frac);
+            commitWindow(win);
+        }
+        
+        function attachPanGesture(canvas) {
+            canvas.addEventListener('wheel', (e) => {
+                // Pinch-to-zoom: macOS trackpad pinch reports wheel+ctrlKey.
+                // Ctrl/Cmd+wheel on mouse also zooms.
+                if (e.ctrlKey || e.metaKey) {
+                    if (!e.deltaY) return;
+                    e.preventDefault();
+                    applyZoom(e.deltaY, e.offsetX);
+                    return;
+                }
+                
+                let dx = 0;
+                if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                    dx = e.deltaX;             // trackpad two-finger horizontal
+                } else if (e.shiftKey && e.deltaY) {
+                    dx = e.deltaY;             // shift+wheel fallback for mouse
+                } else {
+                    return;                    // let vertical scroll pass through
+                }
+                if (dx === 0) return;
+                e.preventDefault();
+                applyPan(dx);
+            }, { passive: false });
+            
+            // Touch pinch (mobile / touch-screen laptops)
+            let pinchState = null;
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    const rect = canvas.getBoundingClientRect();
+                    const [a, b] = e.touches;
+                    pinchState = {
+                        dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+                        centerX: ((a.clientX + b.clientX) / 2) - rect.left
+                    };
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => {
+                if (pinchState && e.touches.length === 2) {
+                    const [a, b] = e.touches;
+                    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+                    if (dist > 0 && pinchState.dist > 0) {
+                        // Convert ratio to equivalent wheel deltaY (negative = zoom in)
+                        const deltaY = -Math.log(dist / pinchState.dist) * 100;
+                        applyZoom(deltaY, pinchState.centerX);
+                        pinchState.dist = dist;
+                    }
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            canvas.addEventListener('touchend', () => { pinchState = null; });
+            canvas.addEventListener('touchcancel', () => { pinchState = null; });
+        }
+        
+        function resetPanState() {
+            viewWindowMs = null;
+            if (powerChart && powerChart.options && powerChart.options.scales && powerChart.options.scales.x) {
+                delete powerChart.options.scales.x.min;
+                delete powerChart.options.scales.x.max;
+            }
+        }
+        
+        function setupTimeControls() {
+            // Set default times
+            const now = new Date();
+            const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            
+            document.getElementById('endTime').value = formatDateTimeLocal(now);
+            document.getElementById('startTime').value = formatDateTimeLocal(twentyFourHoursAgo);
+            
+            // Quick period buttons
+            document.querySelectorAll('.quick-period').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.quick-period').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const hours = parseInt(this.dataset.hours);
+                    currentTimeRange = { hours: hours };
+                    resetPanState();
+                    loadData();
+                });
+            });
+        }
+        
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+        
+        function loadData() {
+            let url;
+            if (currentTimeRange.hours) {
+                url = `/api/history/${currentTimeRange.hours}`;
+            } else if (currentTimeRange.start && currentTimeRange.end) {
+                url = `/api/history/range?start=${currentTimeRange.start}&end=${currentTimeRange.end}`;
+            } else {
+                return;
+            }
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    updateChart(data);
+                    loadMarkers();
+                    if (showSpotPrice) loadSpotPrice();
+                    if (showPlugs) loadPlugsBreakdown();
+                })
+                .catch(error => console.error('Error loading data:', error));
+        }
+
+        function togglePlugs() {
+            showPlugs = !showPlugs;
+            localStorage.setItem('showPlugs', showPlugs ? '1' : '0');
+            updatePlugsButton();
+            if (showPlugs) {
+                loadPlugsBreakdown();
+            } else {
+                currentBreakdown = null;
+                renderPlugsStack();
+            }
+        }
+
+        function updatePlugsButton() {
+            const btn = document.getElementById('plugsBtn');
+            if (!btn) return;
+            btn.classList.toggle('btn-primary', showPlugs);
+            btn.classList.toggle('btn-secondary', !showPlugs);
+        }
+
+        function loadPlugsBreakdown() {
+            if (!showPlugs) return;
+            let url;
+            if (currentTimeRange.start && currentTimeRange.end) {
+                url = `/api/kasa/breakdown/range?start=${encodeURIComponent(currentTimeRange.start)}&end=${encodeURIComponent(currentTimeRange.end)}`;
+            } else if (currentTimeRange.hours) {
+                url = `/api/kasa/breakdown/${currentTimeRange.hours}`;
+            } else {
+                return;
+            }
+            fetch(url)
+                .then(r => r.json())
+                .then(payload => {
+                    currentBreakdown = payload && payload.times ? payload : null;
+                    renderPlugsStack();
+                })
+                .catch(err => {
+                    console.error('Plug breakdown fetch failed', err);
+                    currentBreakdown = null;
+                    renderPlugsStack();
+                });
+        }
+
+        function renderPlugsStack() {
+            // Wipe existing plug / unaccounted datasets
+            powerChart.data.datasets = powerChart.data.datasets.filter(
+                d => d.stack !== PLUG_STACK_ID
+            );
+            powerChart.options.scales.y.stacked = !!showPlugs;
+
+            // Put the main P1 line in its own stack group so it doesn't
+            // add on top of the consumption stack; without a unique stack
+            // key Chart.js would merge it with the breakdown.
+            const powerDs = powerChart.data.datasets.find(d => d.label === 'Total Power (W)');
+            if (powerDs) {
+                if (showPlugs) {
+                    powerDs.stack = 'p1_total';
+                    powerDs.fill = false;
+                    powerDs.borderWidth = 2.5;
+                    powerDs.order = 0;
+                } else {
+                    delete powerDs.stack;
+                    powerDs.fill = true;
+                    powerDs.borderWidth = 2;
+                    delete powerDs.order;
+                }
+            }
+
+            if (!showPlugs || !currentBreakdown) {
+                powerChart.update('none');
+                return;
+            }
+
+            const times = currentBreakdown.times.map(t => new Date(t));
+            const plugs = currentBreakdown.plugs || [];
+            const unaccounted = currentBreakdown.unaccounted || [];
+
+            plugs.forEach((p, idx) => {
+                const color = PLUG_COLORS[idx % PLUG_COLORS.length];
+                powerChart.data.datasets.push({
+                    label: p.alias || p.mac,
+                    data: p.values.map((v, i) => ({ x: times[i], y: v })),
+                    borderColor: color,
+                    backgroundColor: hexToRgba(color, 0.45),
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: true,
+                    stack: PLUG_STACK_ID,
+                    order: 10 + idx,
+                });
+            });
+
+            if (unaccounted.length) {
+                powerChart.data.datasets.push({
+                    label: UNACCOUNTED_LABEL,
+                    data: unaccounted.map((v, i) => ({ x: times[i], y: v })),
+                    borderColor: '#7f8c8d',
+                    backgroundColor: 'rgba(127, 140, 141, 0.3)',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: true,
+                    stack: PLUG_STACK_ID,
+                    order: 50,
+                });
+            }
+
+            powerChart.update('none');
+        }
+
+        function hexToRgba(hex, alpha) {
+            const h = hex.replace('#', '');
+            const r = parseInt(h.substring(0, 2), 16);
+            const g = parseInt(h.substring(2, 4), 16);
+            const b = parseInt(h.substring(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function resolveWindowIso() {
+            if (currentTimeRange.start && currentTimeRange.end) {
+                return { start: currentTimeRange.start, end: currentTimeRange.end };
+            }
+            if (currentTimeRange.hours) {
+                const now = new Date();
+                const start = new Date(now.getTime() - currentTimeRange.hours * 3600 * 1000);
+                return { start: start.toISOString(), end: now.toISOString() };
+            }
+            return null;
+        }
+
+        function toggleSpotPrice() {
+            showSpotPrice = !showSpotPrice;
+            localStorage.setItem('showSpotPrice', showSpotPrice ? '1' : '0');
+            updateSpotPriceButton();
+            if (showSpotPrice) {
+                loadSpotPrice();
+            } else {
+                currentSpotSeries = [];
+                renderSpotPrice();
+            }
+        }
+
+        function updateSpotPriceButton() {
+            const btn = document.getElementById('spotPriceBtn');
+            if (!btn) return;
+            btn.classList.toggle('btn-primary', showSpotPrice);
+            btn.classList.toggle('btn-secondary', !showSpotPrice);
+        }
+
+        function loadSpotPrice() {
+            if (!showSpotPrice) return;
+            const win = resolveWindowIso();
+            if (!win) return;
+            fetch(`/api/spot-price/series?start=${encodeURIComponent(win.start)}&end=${encodeURIComponent(win.end)}`)
+                .then(r => r.json())
+                .then(payload => {
+                    currentSpotSeries = (payload && payload.series) || [];
+                    renderSpotPrice();
+                })
+                .catch(err => {
+                    console.error('Spot price fetch failed', err);
+                    currentSpotSeries = [];
+                    renderSpotPrice();
+                });
+        }
+
+        function renderSpotPrice() {
+            // Remove any existing spot dataset
+            powerChart.data.datasets = powerChart.data.datasets.filter(d => d.label !== SPOT_PRICE_LABEL);
+            powerChart.options.scales.y1.display = showSpotPrice;
+
+            if (showSpotPrice && currentSpotSeries.length) {
+                // Build stepped points: one point at each interval start, one final at last end
+                const points = currentSpotSeries.map(e => ({
+                    x: new Date(e.start),
+                    y: e.price_cents_per_kwh
+                }));
+                const last = currentSpotSeries[currentSpotSeries.length - 1];
+                points.push({ x: new Date(last.end), y: last.price_cents_per_kwh });
+
+                powerChart.data.datasets.push({
+                    label: SPOT_PRICE_LABEL,
+                    data: points,
+                    yAxisID: 'y1',
+                    borderColor: '#f1c40f',
+                    backgroundColor: 'rgba(241, 196, 15, 0.08)',
+                    fill: false,
+                    stepped: 'after',
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    borderWidth: 1.5,
+                    tension: 0
+                });
+            }
+            powerChart.update('none');
+        }
+        
+        function updateChart(data) {
+            const chartData = data.map(point => ({
+                x: new Date(point.datetime),
+                y: point.total_power_w
+            })).reverse(); // Reverse to get chronological order
+            
+            powerChart.data.datasets[0].data = chartData;
+            powerChart.update('none'); // No animation for better performance
+        }
+        
+        function loadMarkers() {
+            let url = '/api/markers';
+            if (currentTimeRange.start && currentTimeRange.end) {
+                url += `?start=${currentTimeRange.start}&end=${currentTimeRange.end}`;
+            } else if (currentTimeRange.hours) {
+                const now = new Date();
+                const start = new Date(now.getTime() - currentTimeRange.hours * 60 * 60 * 1000);
+                url += `?start=${start.toISOString()}&end=${now.toISOString()}`;
+            }
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(markers => {
+                    currentMarkers = markers;
+                    updateMarkerLegend();
+                    addMarkersToChart();
+                })
+                .catch(error => console.error('Error loading markers:', error));
+        }
+        
+        function addMarkersToChart() {
+            // Add markers as a separate dataset
+            const markerData = currentMarkers.map(marker => ({
+                x: new Date(marker.datetime),
+                y: getYValueAtTime(new Date(marker.datetime)),
+                marker: marker
+            }));
+            
+            // Remove existing marker dataset (preserve others like spot price)
+            powerChart.data.datasets = powerChart.data.datasets.filter(d => d.label !== 'Markers');
+            
+            if (markerData.length > 0) {
+                const isHighlighted = (ctx) => ctx.raw && ctx.raw.marker && ctx.raw.marker.id === highlightedMarkerId;
+                powerChart.data.datasets.push({
+                    label: 'Markers',
+                    data: markerData,
+                    type: 'scatter',
+                    showLine: false,
+                    pointRadius: (ctx) => isHighlighted(ctx) ? 14 : 8,
+                    pointHoverRadius: (ctx) => isHighlighted(ctx) ? 16 : 12,
+                    pointBackgroundColor: (ctx) => ctx.raw && ctx.raw.marker ? ctx.raw.marker.color : '#fff',
+                    pointBorderColor: (ctx) => isHighlighted(ctx) ? '#ffd700' : '#fff',
+                    pointBorderWidth: (ctx) => isHighlighted(ctx) ? 4 : 2
+                });
+            }
+            
+            powerChart.update('none');
+        }
+        
+        function getYValueAtTime(targetTime) {
+            const powerData = powerChart.data.datasets[0].data;
+            if (!powerData || powerData.length === 0) return 0;
+            
+            // Find the closest data point
+            let closest = powerData[0];
+            let minDiff = Math.abs(new Date(targetTime) - new Date(closest.x));
+            
+            for (let point of powerData) {
+                const diff = Math.abs(new Date(targetTime) - new Date(point.x));
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = point;
+                }
+            }
+            
+            return closest.y || 0;
+        }
+        
+        function updateMarkerLegend() {
+            const markerList = document.getElementById('markerList');
+            
+            if (currentMarkers.length === 0) {
+                markerList.innerHTML = '<div class="marker-text" style="color: #666; font-style: italic;">No markers</div>';
+                return;
+            }
+            
+            markerList.innerHTML = currentMarkers.map(marker => `
+                <div class="marker-item" data-marker-id="${marker.id}">
+                    <div class="marker-color" style="background-color: ${marker.color}"></div>
+                    <div class="marker-text" title="${marker.description || ''}">${marker.label}</div>
+                    <button class="marker-delete" onclick="deleteMarker(${marker.id}); event.stopPropagation();" title="Delete marker">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+            
+            markerList.querySelectorAll('.marker-item').forEach(el => {
+                const id = parseInt(el.dataset.markerId);
+                el.addEventListener('mouseenter', () => setHighlightedMarker(id));
+                el.addEventListener('mouseleave', () => setHighlightedMarker(null));
+            });
+        }
+        
+        function setHighlightedMarker(markerId) {
+            if (highlightedMarkerId === markerId) return;
+            highlightedMarkerId = markerId;
+            if (!powerChart) return;
+            
+            // Find the markers dataset (it's appended after the power dataset)
+            const datasetIndex = powerChart.data.datasets.findIndex(d => d.label === 'Markers');
+            if (datasetIndex < 0) { powerChart.update('none'); return; }
+            
+            if (markerId == null) {
+                powerChart.setActiveElements([]);
+                powerChart.tooltip.setActiveElements([], { x: 0, y: 0 });
+            } else {
+                const data = powerChart.data.datasets[datasetIndex].data;
+                const pointIndex = data.findIndex(d => d.marker && d.marker.id === markerId);
+                if (pointIndex >= 0) {
+                    const active = [{ datasetIndex, index: pointIndex }];
+                    powerChart.setActiveElements(active);
+                    const meta = powerChart.getDatasetMeta(datasetIndex);
+                    const element = meta && meta.data[pointIndex];
+                    if (element) {
+                        powerChart.tooltip.setActiveElements(active, { x: element.x, y: element.y });
+                    }
+                }
+            }
+            powerChart.update('none');
+        }
+        
+        function updateCustomRange() {
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            
+            if (!startTime || !endTime) {
+                alert('Please select both start and end times');
+                return;
+            }
+            
+            document.querySelectorAll('.quick-period').forEach(b => b.classList.remove('active'));
+            
+            currentTimeRange = {
+                start: new Date(startTime).toISOString(),
+                end: new Date(endTime).toISOString()
+            };
+            resetPanState();
+            loadData();
+        }
+        
+        function addMarker() {
+            if (!selectedTimestamp) {
+                alert('Please click on the chart to select a time point for the marker');
+                return;
+            }
+            openMarkerModal();
+        }
+        
+        function openMarkerModal() {
+            if (!selectedTimestamp) return;
+            
+            const date = new Date(selectedTimestamp * 1000);
+            document.getElementById('markerTime').value = date.toLocaleString();
+            document.getElementById('markerLabel').value = '';
+            document.getElementById('markerDescription').value = '';
+            document.getElementById('markerColor').value = '#ff6b6b';
+            document.getElementById('markerModal').classList.add('show');
+        }
+        
+        function closeMarkerModal() {
+            document.getElementById('markerModal').classList.remove('show');
+            selectedTimestamp = null;
+        }
+        
+        function saveMarker() {
+            const label = document.getElementById('markerLabel').value.trim();
+            const description = document.getElementById('markerDescription').value.trim();
+            const color = document.getElementById('markerColor').value;
+            
+            if (!label) {
+                alert('Please enter a label for the marker');
+                return;
+            }
+            
+            const markerData = {
+                timestamp: selectedTimestamp,
+                label: label,
+                description: description,
+                color: color
+            };
+            
+            fetch('/api/markers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(markerData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error saving marker: ' + data.error);
+                } else {
+                    closeMarkerModal();
+                    loadMarkers(); // Refresh markers
+                }
+            })
+            .catch(error => {
+                console.error('Error saving marker:', error);
+                alert('Error saving marker');
+            });
+        }
+        
+        function deleteMarker(markerId) {
+            if (!confirm('Are you sure you want to delete this marker?')) {
+                return;
+            }
+            
+            fetch(`/api/markers/${markerId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error deleting marker: ' + data.error);
+                } else {
+                    loadMarkers(); // Refresh markers
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting marker:', error);
+                alert('Error deleting marker');
+            });
+        }
+        
+        function goBack() {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>
