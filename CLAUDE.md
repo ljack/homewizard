@@ -86,7 +86,7 @@ Jinja templates in `templates/dashboard.html`, `templates/chart_full.html`. Stat
 
 System prompt contains the household context + full DB schema and is marked `cache_control: ephemeral` — repeated turns hit prompt cache. Volatile content (`now` + live snapshot) goes in the user message, after the cache break. Loop runs until `stop_reason != "tool_use"`, re-sends verbatim on `pause_turn`. Conversation history is kept in `chat_histories` dict in `web_monitor.py`, keyed by a client-generated `session_id` from localStorage, capped to 12 turns.
 
-Requires `ANTHROPIC_API_KEY` env var. Without it, `/api/chat` falls back to the old keyword-template responder in `pi_agent_integration.py` and returns `agent: "fallback_templates"` in the JSON.
+Requires `CLAUDE_API_KEY` env var for the SDK path. Without it, `/api/chat` falls back to the old keyword-template responder in `pi_agent_integration.py` and returns `agent: "fallback_templates"` in the JSON.
 
 ### Mitsubishi MELCloud integration
 

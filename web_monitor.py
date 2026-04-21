@@ -688,7 +688,7 @@ def chat_with_pi():
         return jsonify({
             'response': text,
             'agent': 'fallback_templates',
-            'hint': f'Set ANTHROPIC_API_KEY for agentic responses ({power_agent.init_error}).',
+            'hint': f'Set CLAUDE_API_KEY for agentic responses ({power_agent.init_error}).',
         })
 
     except Exception as e:

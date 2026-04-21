@@ -378,8 +378,8 @@ PRIMARY KEY (device_id, hour_start_ts)
 
 class PowerAnalysisAgent:
     """Per-message agent with three backends, chosen in order:
-      1) `claude` CLI in print mode   — uses existing OAuth, built-in tools (Bash/Read/Grep/Glob/WebFetch/WebSearch)
-      2) `anthropic` SDK + API key    — manual tool-use loop with DB/http/calc/web_search
+      1) `anthropic` SDK + `CLAUDE_API_KEY` — manual tool-use loop with DB/http/calc/web_search
+      2) `claude` CLI in print mode         — built-in tools (Bash/Read/Grep/Glob/WebFetch/WebSearch)
       3) keyword templates (caller-managed fallback)
     """
 
@@ -392,36 +392,34 @@ class PowerAnalysisAgent:
         self.cli_path: Optional[str] = None
         self._started_cli_sessions: set = set()
 
-        # 1) Prefer Claude Code CLI if present
+        # 1) Prefer the direct SDK path when an API key is configured
+        api_key = os.environ.get("CLAUDE_API_KEY")
+        try:
+            if api_key:
+                if anthropic is None:
+                    self.init_error = (
+                        "CLAUDE_API_KEY is set, but the anthropic SDK is not installed"
+                    )
+                    return
+                self.client = anthropic.Anthropic(api_key=api_key)
+                self.mode = "sdk"
+                return
+        except Exception as e:
+            self.init_error = f"SDK client init failed: {e}"
+            return
+
+        # 2) Fallback to Claude Code CLI if present
         cli = shutil.which("claude")
         if cli:
             self.cli_path = cli
             self.mode = "cli"
             return
 
-        # 2) SDK path
+        # 3) No agent backend available
         if anthropic is None:
             self.init_error = "neither `claude` CLI nor anthropic SDK available"
-            return
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        oauth_token = (
-            os.environ.get("ANTHROPIC_AUTH_TOKEN")
-            or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
-        )
-        try:
-            if api_key:
-                self.client = anthropic.Anthropic(api_key=api_key)
-                self.mode = "sdk"
-            elif oauth_token:
-                self.client = anthropic.Anthropic(auth_token=oauth_token)
-                self.mode = "sdk"
-            else:
-                self.init_error = (
-                    "no `claude` CLI on PATH, and neither ANTHROPIC_API_KEY "
-                    "nor CLAUDE_CODE_OAUTH_TOKEN is set"
-                )
-        except Exception as e:
-            self.init_error = f"SDK client init failed: {e}"
+        else:
+            self.init_error = "no CLAUDE_API_KEY set and `claude` CLI is not on PATH"
 
     @property
     def available(self) -> bool:
@@ -557,7 +555,7 @@ class PowerAnalysisAgent:
             return {
                 "response": (
                     "AI agent unavailable: " + (self.init_error or "unknown reason")
-                    + "\n\nEither install Claude Code CLI (`claude`) or set ANTHROPIC_API_KEY and restart."
+                    + "\n\nEither install Claude Code CLI (`claude`) or set CLAUDE_API_KEY and restart."
                 ),
                 "error": self.init_error or "unavailable",
             }
