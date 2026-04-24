@@ -103,6 +103,71 @@
             height: 250px;
             margin: 1rem 0;
         }
+
+        .chart-footnote {
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: #5c6b7a;
+            line-height: 1.4;
+        }
+
+        .chart-range-summary {
+            margin-top: 0.85rem;
+            padding: 0.9rem 1rem;
+            border-radius: 10px;
+            background: #f4f8fc;
+            border: 1px solid #d7e4f1;
+        }
+
+        .chart-range-summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.6rem;
+            color: #1e3c72;
+            font-weight: 600;
+            font-size: 0.92rem;
+        }
+
+        .chart-range-summary-body {
+            color: #526274;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .chart-range-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem;
+            margin: 0.65rem 0;
+        }
+
+        .chart-range-stat {
+            background: #ffffff;
+            border: 1px solid #e0e8f0;
+            border-radius: 8px;
+            padding: 0.6rem 0.7rem;
+        }
+
+        .chart-range-value {
+            color: #1e3c72;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .chart-range-label {
+            color: #66788a;
+            font-size: 0.72rem;
+            margin-top: 0.2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .btn-compact {
+            padding: 0.3rem 0.55rem;
+            font-size: 0.75rem;
+        }
         
         .phase-bars {
             display: flex;
@@ -256,6 +321,132 @@
         }
 
         .rescan-btn:hover { background: #f0f0f0; }
+
+        .invoice-import-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+
+        .invoice-path-input {
+            flex: 1 1 360px;
+            min-width: 240px;
+            border: 1px solid #d6dce3;
+            border-radius: 8px;
+            padding: 0.65rem 0.8rem;
+            background: #f8fafc;
+            color: #304355;
+            font-size: 0.92rem;
+        }
+
+        .invoice-upload-label {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .invoice-upload-label input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .invoice-status {
+            font-size: 0.82rem;
+            margin-bottom: 0.7rem;
+            min-height: 1.2rem;
+            color: #5b6a79;
+        }
+
+        .invoice-status.error {
+            color: #c0392b;
+        }
+
+        .invoice-status.success {
+            color: #1d7f49;
+        }
+
+        .invoice-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .invoice-item {
+            background: #f8fafc;
+            border: 1px solid #dce6ef;
+            border-radius: 12px;
+            padding: 0.9rem 1rem;
+        }
+
+        .invoice-topline {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.75rem;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-bottom: 0.35rem;
+        }
+
+        .invoice-title {
+            color: #1e3c72;
+            font-weight: 700;
+        }
+
+        .invoice-meta {
+            color: #66788a;
+            font-size: 0.8rem;
+            line-height: 1.45;
+            margin-bottom: 0.7rem;
+        }
+
+        .invoice-chip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.55rem;
+            margin-bottom: 0.7rem;
+        }
+
+        .invoice-chip {
+            background: #ffffff;
+            border: 1px solid #e1e8ef;
+            border-radius: 8px;
+            padding: 0.55rem 0.65rem;
+        }
+
+        .invoice-chip-value {
+            color: #1e3c72;
+            font-size: 0.98rem;
+            font-weight: 700;
+        }
+
+        .invoice-chip-label {
+            color: #6c7c8c;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 0.15rem;
+        }
+
+        .invoice-note {
+            color: #4f6274;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .invoice-actions {
+            display: flex;
+            gap: 0.55rem;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .invoice-empty {
+            color: #6f7f8e;
+            font-style: italic;
+        }
 
         .chat-container {
             grid-column: span 3;
@@ -508,6 +699,18 @@
             <div class="chart-container">
                 <canvas id="powerChart"></canvas>
             </div>
+            <div class="chart-footnote">
+                Hourly ILP overlay: <strong>Yläkerta</strong> is included in this P1 meter total, while <strong>Iso huone</strong> is outside this P1 meter.
+            </div>
+            <div class="chart-range-summary" id="chartRangeSummary">
+                <div class="chart-range-summary-header">
+                    <span>Selected Range</span>
+                    <button class="btn btn-secondary btn-compact" id="clearDashboardRangeBtn" onclick="clearDashboardRangeSelection()" style="display: none;">Clear</button>
+                </div>
+                <div class="chart-range-summary-body" id="chartRangeSummaryBody">
+                    Drag across the chart to measure energy and cost for any time span in view.
+                </div>
+            </div>
         </div>
 
         <!-- Voltage & Current -->
@@ -608,13 +811,45 @@
         <div class="card plug-card">
             <div class="card-header">
                 <i class="fas fa-plug"></i>
-                <span>Consumption Sources (HS110 Smart Plugs)</span>
-                <button class="rescan-btn" onclick="rescanPlugs()" title="Scan LAN for new plugs">
-                    <i class="fas fa-sync"></i> Rescan
+                <span>Consumption Sources (Smart Plugs)</span>
+                <button class="rescan-btn" onclick="rescanPlugs()" title="Scan LAN for new Kasa plugs">
+                    <i class="fas fa-sync"></i> Rescan Kasa
                 </button>
             </div>
             <div class="plug-list" id="plugList">
                 <div class="plug-row"><div class="plug-label">Loading plugs…</div></div>
+            </div>
+            <div class="chart-footnote">
+                Kasa plugs appear via LAN rescan. Tuya / Nedis plugs are loaded from local <code>devices.json</code> and optional <code>tuya_devices.json</code>.
+            </div>
+        </div>
+
+        <div class="card plug-card">
+            <div class="card-header">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Electricity Invoices</span>
+            </div>
+            <div class="invoice-import-row">
+                <input
+                    type="text"
+                    id="invoicePath"
+                    class="invoice-path-input"
+                    placeholder="Local PDF path on this Mac (localhost-only import)"
+                >
+                <button class="btn btn-secondary" onclick="importInvoiceFromPath()">
+                    <i class="fas fa-folder-open"></i> Import Path
+                </button>
+                <label class="btn btn-secondary invoice-upload-label">
+                    <i class="fas fa-file-upload"></i> Upload PDF
+                    <input type="file" id="invoiceFile" accept="application/pdf" onchange="uploadInvoicePdf()">
+                </label>
+            </div>
+            <div class="chart-footnote">
+                Imported invoice PDFs are stored locally in <code>invoice_pdfs/</code> and ignored by git. Correlation uses measured P1 data when available; otherwise the billed kWh is used as an estimate for that past period.
+            </div>
+            <div class="invoice-status" id="invoiceStatus"></div>
+            <div class="invoice-list" id="invoiceList">
+                <div class="invoice-empty">No invoices imported yet.</div>
             </div>
         </div>
 
@@ -647,20 +882,44 @@
         let currentTimeRange = { hours: 24 };
         let viewWindowMs = null;
         let panFetchTimer = null;
+        let currentIlpPowerSeries = [];
         const FALLBACK_PRICE_EUR_PER_KWH = 0.25;
+        const ILP_DATASET_PREFIX = 'ILP hourly avg:';
+        const INVOICE_ESTIMATE_LABEL = 'Invoice estimate (W)';
         let currentPricing = {
             priceEurPerKwh: FALLBACK_PRICE_EUR_PER_KWH,
             usingFallbackPrice: true,
             spotPrice: null
         };
+        const RANGE_SELECTION_MIN_PIXELS = 12;
         let latestPlugs = [];      // most recent reading per plug
         let latestTotalPowerW = 0; // P1 whole-house total for "unaccounted" math
         let latestHeatPumps = [];  // Mitsubishi ILP latest
+        let invoices = [];
+        let dashboardRangeSelection = {
+            startMs: null,
+            endMs: null,
+            dragStartPx: null,
+            dragCurrentPx: null,
+            dragActive: false,
+            loading: false,
+            error: '',
+            summary: null
+        };
+        let dashboardRangeSummaryRequestId = 0;
+        const dashboardRangeSelectionPlugin = {
+            id: 'dashboardRangeSelectionOverlay',
+            afterDatasetsDraw(chart) {
+                drawDashboardRangeOverlay(chart);
+            }
+        };
+        Chart.register(dashboardRangeSelectionPlugin);
         
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             initializeSocket();
             initializeChart();
+            updateChart();
             loadSpotPrice();
             loadInitialData();
             loadStatistics();
@@ -670,7 +929,334 @@
             loadHeatPumps();
             setInterval(loadHeatPumps, 120000); // MELCloud polled every 2 min server-side
             setInterval(renderHeatPumps, 15000); // refresh "Xs ago" labels
+            loadInvoices();
         });
+
+        function formatPowerTooltipLabel(ds, value) {
+            const rounded = Math.round(value).toLocaleString();
+            if (!ds || !ds.label) return `${rounded}W`;
+            if (ds.label === 'Total Power (W)') return `Whole house (P1): ${rounded}W`;
+            if (ds.invoiceEstimateSeries) return `Invoice estimate: ${rounded}W`;
+            if (ds.ilpSeries) return `${ds.label.replace(ILP_DATASET_PREFIX + ' ', '')}: ${rounded}W avg`;
+            return `${ds.label}: ${rounded}W`;
+        }
+
+        function getDashboardDataset(label) {
+            return powerChart && powerChart.data.datasets.find(ds => ds.label === label);
+        }
+
+        function splitHistorySeries(data) {
+            const measuredPoints = [];
+            const estimatedPoints = [];
+            let lastEstimateSegmentId = null;
+
+            data.forEach(point => {
+                const entry = {
+                    x: new Date(point.datetime),
+                    y: point.total_power_w,
+                    estimated: !!point.estimated,
+                    invoiceId: point.invoice_id,
+                    invoiceNumber: point.invoice_number,
+                    sellerName: point.seller_name,
+                    estimateSegmentId: point.estimate_segment_id
+                };
+
+                if (point.estimated) {
+                    if (lastEstimateSegmentId !== null && point.estimate_segment_id !== lastEstimateSegmentId) {
+                        estimatedPoints.push({ x: entry.x, y: null });
+                    }
+                    estimatedPoints.push(entry);
+                    lastEstimateSegmentId = point.estimate_segment_id || lastEstimateSegmentId;
+                } else {
+                    measuredPoints.push(entry);
+                    lastEstimateSegmentId = null;
+                }
+            });
+
+            return { measuredPoints, estimatedPoints };
+        }
+
+        function formatRangeDuration(seconds) {
+            const totalSeconds = Math.max(0, Math.round(seconds || 0));
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const secs = totalSeconds % 60;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            if (minutes > 0) return `${minutes}m ${secs}s`;
+            return `${secs}s`;
+        }
+
+        function formatEnergyKwh(value) {
+            return `${(value || 0).toFixed(2)} kWh`;
+        }
+
+        function formatMoney(value) {
+            return `€${(value || 0).toFixed(2)}`;
+        }
+
+        function formatPowerValue(value) {
+            return `${Math.round(value || 0).toLocaleString()} W`;
+        }
+
+        function clampDashboardSelectionPx(x) {
+            const area = powerChart && powerChart.chartArea;
+            if (!area) return x;
+            return Math.max(area.left, Math.min(area.right, x));
+        }
+
+        function getDashboardRangePixels(chart) {
+            const area = chart && chart.chartArea;
+            const xScale = chart && chart.scales && chart.scales.x;
+            if (!area || !xScale) return null;
+
+            if (dashboardRangeSelection.dragActive && dashboardRangeSelection.dragStartPx != null && dashboardRangeSelection.dragCurrentPx != null) {
+                return {
+                    left: Math.max(area.left, Math.min(dashboardRangeSelection.dragStartPx, dashboardRangeSelection.dragCurrentPx)),
+                    right: Math.min(area.right, Math.max(dashboardRangeSelection.dragStartPx, dashboardRangeSelection.dragCurrentPx)),
+                    dragging: true
+                };
+            }
+
+            if (dashboardRangeSelection.startMs == null || dashboardRangeSelection.endMs == null) return null;
+            const left = xScale.getPixelForValue(dashboardRangeSelection.startMs);
+            const right = xScale.getPixelForValue(dashboardRangeSelection.endMs);
+            if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
+            if (right < area.left || left > area.right) return null;
+            return {
+                left: Math.max(area.left, Math.min(left, right)),
+                right: Math.min(area.right, Math.max(left, right)),
+                dragging: false
+            };
+        }
+
+        function drawDashboardRangeOverlay(chart) {
+            const selection = getDashboardRangePixels(chart);
+            if (!selection) return;
+            const width = selection.right - selection.left;
+            if (width < 1) return;
+
+            const { ctx, chartArea } = chart;
+            ctx.save();
+            ctx.fillStyle = selection.dragging ? 'rgba(42, 82, 152, 0.16)' : 'rgba(42, 82, 152, 0.11)';
+            ctx.strokeStyle = selection.dragging ? 'rgba(42, 82, 152, 0.9)' : 'rgba(42, 82, 152, 0.65)';
+            ctx.lineWidth = 1;
+            ctx.fillRect(selection.left, chartArea.top, width, chartArea.bottom - chartArea.top);
+            ctx.strokeRect(selection.left, chartArea.top, width, chartArea.bottom - chartArea.top);
+            ctx.restore();
+        }
+
+        function clearDashboardRangeSelection() {
+            dashboardRangeSummaryRequestId += 1;
+            dashboardRangeSelection = {
+                startMs: null,
+                endMs: null,
+                dragStartPx: null,
+                dragCurrentPx: null,
+                dragActive: false,
+                loading: false,
+                error: '',
+                summary: null
+            };
+            renderDashboardRangeSummary();
+            if (powerChart) powerChart.draw();
+        }
+
+        function setDashboardRangeFromPixels(startPx, endPx) {
+            const xScale = powerChart && powerChart.scales && powerChart.scales.x;
+            if (!xScale) return;
+            if (Math.abs(endPx - startPx) < RANGE_SELECTION_MIN_PIXELS) return;
+
+            const startMs = xScale.getValueForPixel(Math.min(startPx, endPx));
+            const endMs = xScale.getValueForPixel(Math.max(startPx, endPx));
+            if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return;
+
+            dashboardRangeSelection.startMs = startMs;
+            dashboardRangeSelection.endMs = endMs;
+            dashboardRangeSelection.loading = true;
+            dashboardRangeSelection.error = '';
+            dashboardRangeSelection.summary = null;
+            renderDashboardRangeSummary();
+            loadDashboardRangeSummary();
+            if (powerChart) powerChart.draw();
+        }
+
+        function loadDashboardRangeSummary() {
+            if (dashboardRangeSelection.startMs == null || dashboardRangeSelection.endMs == null) return;
+            const requestId = ++dashboardRangeSummaryRequestId;
+            const startIso = new Date(dashboardRangeSelection.startMs).toISOString();
+            const endIso = new Date(dashboardRangeSelection.endMs).toISOString();
+
+            fetch(`/api/history/summary?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}`)
+                .then(response => response.json().then(payload => ({ ok: response.ok, payload })))
+                .then(({ ok, payload }) => {
+                    if (requestId !== dashboardRangeSummaryRequestId) return;
+                    if (!ok) {
+                        throw new Error(payload.error || 'Failed to summarize selected range');
+                    }
+                    dashboardRangeSelection.loading = false;
+                    dashboardRangeSelection.error = '';
+                    dashboardRangeSelection.summary = payload;
+                    renderDashboardRangeSummary();
+                })
+                .catch(error => {
+                    if (requestId !== dashboardRangeSummaryRequestId) return;
+                    dashboardRangeSelection.loading = false;
+                    dashboardRangeSelection.summary = null;
+                    dashboardRangeSelection.error = error.message || 'Failed to summarize selected range';
+                    renderDashboardRangeSummary();
+                });
+        }
+
+        function renderDashboardRangeSummary() {
+            const body = document.getElementById('chartRangeSummaryBody');
+            const clearBtn = document.getElementById('clearDashboardRangeBtn');
+            if (!body || !clearBtn) return;
+
+            const hasSelection = dashboardRangeSelection.startMs != null && dashboardRangeSelection.endMs != null;
+            clearBtn.style.display = hasSelection ? 'inline-flex' : 'none';
+
+            if (!hasSelection) {
+                body.className = 'chart-range-summary-body';
+                body.textContent = 'Drag across the chart to measure energy and cost for any time span in view.';
+                return;
+            }
+
+            const startLabel = new Date(dashboardRangeSelection.startMs).toLocaleString();
+            const endLabel = new Date(dashboardRangeSelection.endMs).toLocaleString();
+
+            if (dashboardRangeSelection.loading) {
+                body.className = 'chart-range-summary-body';
+                body.innerHTML = `<div>${startLabel}<br>${endLabel}</div><div style="margin-top: 0.45rem;">Calculating energy and cost for the selected range…</div>`;
+                return;
+            }
+
+            if (dashboardRangeSelection.error) {
+                body.className = 'chart-range-summary-body';
+                body.innerHTML = `<div>${startLabel}<br>${endLabel}</div><div style="margin-top: 0.45rem; color: #c0392b;">${dashboardRangeSelection.error}</div>`;
+                return;
+            }
+
+            const summary = dashboardRangeSelection.summary;
+            if (!summary) {
+                body.className = 'chart-range-summary-body';
+                body.textContent = 'Select a range to see summary details.';
+                return;
+            }
+
+            const spotCoverage = Number(summary.spot_price_coverage_pct || 0);
+            const measuredCoverage = Number(summary.measured_coverage_pct || 0);
+            const p1CounterCoverage = Number(summary.p1_counter_fill_coverage_pct || 0);
+            const invoiceCoverage = Number(summary.invoice_estimate_coverage_pct || 0);
+            const invoicePriceCoverage = Number(summary.invoice_price_coverage_pct || 0);
+            const deltaCoverage = Number(summary.invoice_delta_coverage_pct || 0);
+            const costLabel = spotCoverage >= 99.9 ? 'Spot Cost' : 'Est. Cost';
+            let note = `Measured coverage ${measuredCoverage.toFixed(1)}%.`;
+            if (p1CounterCoverage > 0.1) {
+                note += ` P1 counter fill covered another ${p1CounterCoverage.toFixed(1)}% (${formatEnergyKwh(summary.p1_counter_fill_kwh)}).`;
+            }
+            if (invoiceCoverage > 0.1) {
+                note += ` Invoice backfill covered another ${invoiceCoverage.toFixed(1)}% (${formatEnergyKwh(summary.invoice_estimate_kwh)}).`;
+            }
+            if (invoicePriceCoverage > 0.1) {
+                note += ` Direct invoice pricing covered ${invoicePriceCoverage.toFixed(1)}% of imported energy.`;
+            } else if (deltaCoverage > 0.1 && summary.price_delta_cents_per_kwh != null) {
+                note += ` Cost used spot plus ${Number(summary.price_delta_cents_per_kwh).toFixed(2)} c/kWh invoice-calibrated delta for ${deltaCoverage.toFixed(1)}% of imported energy.`;
+            } else if (spotCoverage >= 99.9) {
+                note += ' Cost uses historical spot prices.';
+            } else {
+                note += ` Spot-priced ${spotCoverage.toFixed(1)}% of imported energy; the rest uses ${summary.fallback_price_cents_per_kwh.toFixed(2)} c/kWh.`;
+            }
+
+            body.className = 'chart-range-summary-body';
+            body.innerHTML = `
+                <div>${startLabel}<br>${endLabel}</div>
+                <div class="chart-range-grid">
+                    <div class="chart-range-stat">
+                        <div class="chart-range-value">${formatRangeDuration(summary.duration_seconds)}</div>
+                        <div class="chart-range-label">Duration</div>
+                    </div>
+                    <div class="chart-range-stat">
+                        <div class="chart-range-value">${formatEnergyKwh(summary.import_energy_kwh)}</div>
+                        <div class="chart-range-label">Energy</div>
+                    </div>
+                    <div class="chart-range-stat">
+                        <div class="chart-range-value">${formatMoney(summary.estimated_cost_eur)}</div>
+                        <div class="chart-range-label">${costLabel}</div>
+                    </div>
+                    <div class="chart-range-stat">
+                        <div class="chart-range-value">${formatPowerValue(summary.max_power_w)}</div>
+                        <div class="chart-range-label">Peak</div>
+                    </div>
+                </div>
+                <div>${note}</div>
+            `;
+        }
+
+        function attachDashboardRangeSelection(canvas) {
+            let pointerState = null;
+
+            const finishSelection = (event, cancelled = false) => {
+                if (!pointerState) return;
+                const rect = canvas.getBoundingClientRect();
+                const endPx = clampDashboardSelectionPx(event ? (event.clientX - rect.left) : pointerState.startPx);
+                const wasDragging = !!pointerState.dragging;
+                dashboardRangeSelection.dragActive = false;
+                dashboardRangeSelection.dragStartPx = null;
+                dashboardRangeSelection.dragCurrentPx = null;
+
+                if (!cancelled && wasDragging) {
+                    setDashboardRangeFromPixels(pointerState.startPx, endPx);
+                }
+
+                pointerState = null;
+                if (powerChart) powerChart.draw();
+            };
+
+            canvas.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0 || !powerChart || !powerChart.chartArea) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const area = powerChart.chartArea;
+                if (x < area.left || x > area.right || y < area.top || y > area.bottom) return;
+
+                pointerState = {
+                    id: event.pointerId,
+                    startPx: clampDashboardSelectionPx(x),
+                    startPy: y,
+                    dragging: false
+                };
+                dashboardRangeSelection.dragActive = true;
+                dashboardRangeSelection.dragStartPx = pointerState.startPx;
+                dashboardRangeSelection.dragCurrentPx = pointerState.startPx;
+                canvas.setPointerCapture?.(event.pointerId);
+            });
+
+            canvas.addEventListener('pointermove', (event) => {
+                if (!pointerState || event.pointerId !== pointerState.id) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = clampDashboardSelectionPx(event.clientX - rect.left);
+                const y = event.clientY - rect.top;
+                const dx = x - pointerState.startPx;
+                const dy = y - pointerState.startPy;
+
+                if (!pointerState.dragging) {
+                    if (Math.abs(dx) < RANGE_SELECTION_MIN_PIXELS) return;
+                    if (Math.abs(dx) < Math.abs(dy)) return;
+                    pointerState.dragging = true;
+                }
+
+                dashboardRangeSelection.dragCurrentPx = x;
+                if (powerChart) powerChart.draw();
+                event.preventDefault();
+            }, { passive: false });
+
+            canvas.addEventListener('pointerup', (event) => finishSelection(event, false));
+            canvas.addEventListener('pointercancel', (event) => finishSelection(event, true));
+            canvas.addEventListener('pointerleave', (event) => {
+                if (pointerState && pointerState.dragging) finishSelection(event, false);
+            });
+        }
         
         function initializeSocket() {
             socket = io();
@@ -730,6 +1316,7 @@
                 const outdoor = (d.outdoor_temperature != null) ? `${d.outdoor_temperature.toFixed(1)}°C` : '—';
                 const kwh = (d.total_energy_consumed_kwh != null) ? `${d.total_energy_consumed_kwh.toFixed(1)} kWh total` : '';
                 const estW = (d.estimated_power_w != null) ? `${d.estimated_power_w.toFixed(0)} W (est.)` : '';
+                const scope = d.scope_label ? escapeHtml(d.scope_label) : '';
                 const tsNote = formatPlugTimestamp(d.timestamp);
                 return `
                     <div class="plug-row">
@@ -739,7 +1326,7 @@
                                 <strong>${escapeHtml(d.name || '(unnamed)')}</strong>
                                 <span class="plug-meta">${mode} · room ${room} → set ${target} · outdoor ${outdoor}${tsNote ? ' · ' + tsNote : ''}</span>
                             </div>
-                            <div class="plug-meta" style="margin-top:0.15rem">${kwh}${estW ? ' · ' + estW : ''}</div>
+                            <div class="plug-meta" style="margin-top:0.15rem">${kwh}${estW ? ' · ' + estW : ''}${scope ? ' · ' + scope : ''}</div>
                         </div>
                     </div>
                 `;
@@ -752,6 +1339,219 @@
             if (label) {
                 label.textContent = outdoor != null ? `🌡️ Outdoor ${outdoor.toFixed(1)}°C` : '';
             }
+        }
+
+        function setInvoiceStatus(message, kind = '') {
+            const el = document.getElementById('invoiceStatus');
+            if (!el) return;
+            el.className = `invoice-status${kind ? ' ' + kind : ''}`;
+            el.textContent = message || '';
+        }
+
+        function formatInvoiceDate(value) {
+            if (!value) return '—';
+            const date = new Date(`${value}T00:00:00`);
+            return Number.isNaN(date.getTime()) ? escapeHtml(value) : date.toLocaleDateString();
+        }
+
+        function formatInvoiceKwh(value) {
+            if (value == null || Number.isNaN(Number(value))) return '—';
+            return `${Number(value).toFixed(2)} kWh`;
+        }
+
+        function formatInvoiceMoney(value) {
+            if (value == null || Number.isNaN(Number(value))) return '—';
+            return `€${Number(value).toFixed(2)}`;
+        }
+
+        function formatInvoicePower(value) {
+            if (value == null || Number.isNaN(Number(value))) return '—';
+            return `${Math.round(Number(value)).toLocaleString()} W`;
+        }
+
+        function buildInvoiceCorrelationNote(invoice) {
+            const corr = invoice.correlation || {};
+            const billed = Number(invoice.billed_energy_kwh || 0);
+            const coverage = Number(corr.measured_coverage_pct || 0);
+            const measured = Number(corr.measured_import_kwh || 0);
+            const projected = corr.projected_full_period_kwh;
+            const invoiceAvg = corr.invoice_avg_power_w;
+            const invoiceDaily = corr.invoice_daily_kwh;
+
+            if (coverage >= 99 && billed > 0) {
+                const delta = Number(corr.billed_minus_projected_kwh || 0);
+                const deltaLabel = delta >= 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2);
+                return `P1 data covers the full bill period. Measured ${measured.toFixed(2)} kWh versus billed ${billed.toFixed(2)} kWh, delta ${deltaLabel} kWh.`;
+            }
+
+            if (coverage > 0 && projected != null) {
+                return `P1 data covers ${coverage.toFixed(1)}% of the bill period. If extrapolated from the measured window, usage would land around ${Number(projected).toFixed(2)} kWh versus billed ${billed.toFixed(2)} kWh.`;
+            }
+
+            if (invoiceAvg != null && invoiceDaily != null) {
+                return `No P1 meter history is available for this billing period yet. The invoice can be used as a past estimate: about ${Number(invoiceDaily).toFixed(2)} kWh/day, or ${formatInvoicePower(invoiceAvg)} average load over the period.`;
+            }
+
+            return 'Invoice imported, but there is not enough parsed data yet for a detailed correlation.';
+        }
+
+        function renderInvoices() {
+            const list = document.getElementById('invoiceList');
+            if (!list) return;
+
+            if (!invoices.length) {
+                list.innerHTML = '<div class="invoice-empty">No invoices imported yet.</div>';
+                return;
+            }
+
+            list.innerHTML = invoices.map(invoice => {
+                const corr = invoice.correlation || {};
+                const usagePoint = invoice.usage_point_id ? `usage point ${escapeHtml(invoice.usage_point_id)}` : '';
+                const contract = invoice.contract_number ? `contract ${escapeHtml(invoice.contract_number)}` : '';
+                const metaParts = [
+                    invoice.seller_name ? escapeHtml(invoice.seller_name) : '',
+                    invoice.invoice_number ? `invoice ${escapeHtml(invoice.invoice_number)}` : '',
+                    usagePoint,
+                    contract
+                ].filter(Boolean);
+                const avgPrice = invoice.average_price_cents_per_kwh != null
+                    ? `${Number(invoice.average_price_cents_per_kwh).toFixed(2)} c/kWh`
+                    : '—';
+                const measuredCoverage = corr.measured_coverage_pct != null ? `${Number(corr.measured_coverage_pct).toFixed(1)}%` : '—';
+                const period = `${formatInvoiceDate(invoice.period_start_date)} - ${formatInvoiceDate(invoice.period_end_date)}`;
+                const pdfLink = invoice.pdf_url
+                    ? `<a class="btn btn-secondary btn-compact" href="${escapeHtml(invoice.pdf_url)}" target="_blank" rel="noopener noreferrer"><i class="fas fa-file-pdf"></i> PDF</a>`
+                    : '';
+                return `
+                    <div class="invoice-item">
+                        <div class="invoice-topline">
+                            <div>
+                                <div class="invoice-title">${escapeHtml(period)}</div>
+                                <div class="invoice-meta">${metaParts.join(' · ') || 'Imported invoice'}${invoice.invoice_date ? ` · dated ${formatInvoiceDate(invoice.invoice_date)}` : ''}</div>
+                            </div>
+                            <div class="invoice-actions">
+                                ${pdfLink}
+                                <button class="btn btn-secondary btn-compact" onclick="deleteInvoice(${invoice.id})">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </div>
+                        </div>
+                        <div class="invoice-chip-grid">
+                            <div class="invoice-chip">
+                                <div class="invoice-chip-value">${formatInvoiceKwh(invoice.billed_energy_kwh)}</div>
+                                <div class="invoice-chip-label">Billed Energy</div>
+                            </div>
+                            <div class="invoice-chip">
+                                <div class="invoice-chip-value">${formatInvoiceMoney(invoice.total_amount_eur)}</div>
+                                <div class="invoice-chip-label">Invoice Total</div>
+                            </div>
+                            <div class="invoice-chip">
+                                <div class="invoice-chip-value">${avgPrice}</div>
+                                <div class="invoice-chip-label">Avg Price</div>
+                            </div>
+                            <div class="invoice-chip">
+                                <div class="invoice-chip-value">${formatInvoiceKwh(corr.measured_import_kwh)}</div>
+                                <div class="invoice-chip-label">P1 Measured</div>
+                            </div>
+                            <div class="invoice-chip">
+                                <div class="invoice-chip-value">${measuredCoverage}</div>
+                                <div class="invoice-chip-label">P1 Coverage</div>
+                            </div>
+                            <div class="invoice-chip">
+                                <div class="invoice-chip-value">${formatInvoicePower(corr.invoice_avg_power_w)}</div>
+                                <div class="invoice-chip-label">Invoice Avg Load</div>
+                            </div>
+                        </div>
+                        <div class="invoice-note">${escapeHtml(buildInvoiceCorrelationNote(invoice))}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadInvoices() {
+            fetch('/api/invoices')
+                .then(response => response.json())
+                .then(payload => {
+                    invoices = (payload && payload.invoices) || [];
+                    renderInvoices();
+                })
+                .catch(error => {
+                    console.error('invoice fetch failed', error);
+                    setInvoiceStatus('Failed to load invoices', 'error');
+                });
+        }
+
+        function importInvoiceFromPath() {
+            const input = document.getElementById('invoicePath');
+            const path = (input && input.value || '').trim();
+            if (!path) {
+                setInvoiceStatus('Enter a PDF path to import.', 'error');
+                return;
+            }
+
+            setInvoiceStatus('Importing invoice from local path…');
+            fetch('/api/invoices/import-path', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path })
+            })
+                .then(response => response.json().then(payload => ({ ok: response.ok, payload })))
+                .then(({ ok, payload }) => {
+                    if (!ok) throw new Error(payload.error || 'Import failed');
+                    input.value = '';
+                    const statusMessage = payload.duplicate
+                        ? (payload.refreshed ? 'Invoice was already imported; metadata was refreshed.' : 'Invoice was already imported.')
+                        : 'Invoice imported successfully.';
+                    setInvoiceStatus(statusMessage, 'success');
+                    loadInvoices();
+                })
+                .catch(error => {
+                    setInvoiceStatus(error.message || 'Import failed.', 'error');
+                });
+        }
+
+        function uploadInvoicePdf() {
+            const input = document.getElementById('invoiceFile');
+            const file = input && input.files && input.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('pdf', file);
+            setInvoiceStatus(`Uploading ${file.name}…`);
+
+            fetch('/api/invoices/upload', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json().then(payload => ({ ok: response.ok, payload })))
+                .then(({ ok, payload }) => {
+                    if (!ok) throw new Error(payload.error || 'Upload failed');
+                    const statusMessage = payload.duplicate
+                        ? (payload.refreshed ? 'Invoice was already imported; metadata was refreshed.' : 'Invoice was already imported.')
+                        : 'Invoice uploaded successfully.';
+                    setInvoiceStatus(statusMessage, 'success');
+                    input.value = '';
+                    loadInvoices();
+                })
+                .catch(error => {
+                    setInvoiceStatus(error.message || 'Upload failed.', 'error');
+                    if (input) input.value = '';
+                });
+        }
+
+        function deleteInvoice(invoiceId) {
+            if (!confirm('Delete this imported invoice and its stored PDF copy?')) return;
+
+            fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' })
+                .then(response => response.json().then(payload => ({ ok: response.ok, payload })))
+                .then(({ ok, payload }) => {
+                    if (!ok) throw new Error(payload.error || 'Delete failed');
+                    setInvoiceStatus('Invoice deleted.', 'success');
+                    loadInvoices();
+                })
+                .catch(error => {
+                    setInvoiceStatus(error.message || 'Delete failed.', 'error');
+                });
         }
 
         function loadPlugs() {
@@ -779,7 +1579,7 @@
             if (!list) return;
 
             if (!latestPlugs.length) {
-                list.innerHTML = '<div class="plug-row"><div class="plug-label">No plugs discovered. Click Rescan to scan the LAN.</div></div>';
+                list.innerHTML = '<div class="plug-row"><div class="plug-label">No smart plugs yet. Rescan finds Kasa devices; Tuya / Nedis devices appear after local setup.</div></div>';
                 return;
             }
 
@@ -808,19 +1608,24 @@
                 const w = p.power_w || 0;
                 const pct = (w / denom) * 100;
                 const tsNote = formatPlugTimestamp(p.timestamp);
+                const source = p.source_label || p.source || '';
+                const statusNote = p.status_note || '';
+                const meta = [source, p.ip || '', statusNote, tsNote].filter(Boolean).join(' · ');
+                const powerLabel = (p.power_w != null)
+                    ? `${w.toFixed(1)} W${totalW > 0 ? ` <span class="plug-pct">(${pct.toFixed(1)}%)</span>` : ''}`
+                    : `<span class="plug-meta">${escapeHtml(statusNote || 'No live reading yet')}</span>`;
                 rows.push(`
                     <div class="plug-row">
                         <div style="flex: 1;">
                             <div class="plug-label">
                                 <span class="plug-indicator ${p.is_on ? 'on' : 'off'}"></span>
-                                <strong>${escapeHtml(p.alias || p.mac)}</strong>
-                                <span class="plug-meta">${p.ip || ''}${tsNote ? ' · ' + tsNote : ''}</span>
+                                <strong>${escapeHtml(p.alias || p.mac || p.device_uid || 'plug')}</strong>
+                                <span class="plug-meta">${escapeHtml(meta)}</span>
                             </div>
                             <div class="plug-bar"><div class="plug-bar-fill" style="width: ${Math.min(pct, 100).toFixed(1)}%"></div></div>
                         </div>
                         <div class="plug-power" style="margin-left: 1rem;">
-                            ${w.toFixed(1)} W
-                            <span class="plug-pct">(${pct.toFixed(1)}%)</span>
+                            ${powerLabel}
                         </div>
                     </div>
                 `);
@@ -1025,6 +1830,19 @@
                         fill: true,
                         pointRadius: 0,
                         pointHoverRadius: 4
+                    }, {
+                        label: INVOICE_ESTIMATE_LABEL,
+                        data: [],
+                        invoiceEstimateSeries: true,
+                        borderColor: '#ff9f43',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [8, 4],
+                        tension: 0,
+                        fill: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        spanGaps: false
                     }]
                 },
                 options: {
@@ -1056,11 +1874,32 @@
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const ds = context.dataset || {};
+                                    return formatPowerTooltipLabel(ds, context.parsed.y);
+                                },
+                                afterLabel: function(context) {
+                                    const ds = context.dataset || {};
+                                    if (ds.invoiceEstimateSeries && context.raw && context.raw.invoiceNumber) {
+                                        const seller = context.raw.sellerName ? ` (${context.raw.sellerName})` : '';
+                                        return `Estimated from invoice ${context.raw.invoiceNumber}${seller}`;
+                                    }
+                                    if (ds.ilpSeries && context.raw && context.raw.coveragePercent != null) {
+                                        const suffix = context.raw.partial ? ' (partial hour)' : '';
+                                        return `Coverage: ${context.raw.coveragePercent.toFixed(1)}%${suffix}`;
+                                    }
+                                    return '';
+                                }
+                            }
                         }
                     }
                 }
             });
             attachPanGesture(ctx.canvas);
+            attachDashboardRangeSelection(ctx.canvas);
             // Seed currentTimeRange from the dropdown's initial value
             const sel = document.getElementById('chartPeriod');
             if (sel) currentTimeRange = { hours: parseInt(sel.value) };
@@ -1070,6 +1909,7 @@
             const hours = parseInt(document.getElementById('chartPeriod').value);
             currentTimeRange = { hours };
             resetPanState();
+            clearDashboardRangeSelection();
             updateChart();
         }
         
@@ -1084,14 +1924,89 @@
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    const points = data.map(point => ({
-                        x: new Date(point.datetime),
-                        y: point.total_power_w
-                    })).reverse();
-                    powerChart.data.datasets[0].data = points;
+                    const { measuredPoints, estimatedPoints } = splitHistorySeries(data);
+                    const totalDs = getDashboardDataset('Total Power (W)');
+                    const invoiceDs = getDashboardDataset(INVOICE_ESTIMATE_LABEL);
+                    if (totalDs) totalDs.data = measuredPoints;
+                    if (invoiceDs) invoiceDs.data = estimatedPoints;
                     powerChart.update('none');
+                    loadIlpPowerSeries();
                 })
                 .catch(error => console.error('Error updating chart:', error));
+        }
+
+        function resolveWindowIso() {
+            if (currentTimeRange.start && currentTimeRange.end) {
+                return { start: currentTimeRange.start, end: currentTimeRange.end };
+            }
+            const hours = currentTimeRange.hours || parseInt(document.getElementById('chartPeriod').value);
+            if (!hours) return null;
+            const now = new Date();
+            const start = new Date(now.getTime() - hours * 3600 * 1000);
+            return { start: start.toISOString(), end: now.toISOString() };
+        }
+
+        function loadIlpPowerSeries() {
+            const win = resolveWindowIso();
+            if (!win) return;
+            fetch(`/api/melcloud/power-series?start=${encodeURIComponent(win.start)}&end=${encodeURIComponent(win.end)}`)
+                .then(response => response.json())
+                .then(payload => {
+                    currentIlpPowerSeries = (payload && payload.series) || [];
+                    renderIlpPowerSeries();
+                })
+                .catch(error => {
+                    console.error('Error loading ILP power series:', error);
+                    currentIlpPowerSeries = [];
+                    renderIlpPowerSeries();
+                });
+        }
+
+        function renderIlpPowerSeries() {
+            if (!powerChart) return;
+            powerChart.data.datasets = powerChart.data.datasets.filter(d => !d.ilpSeries);
+
+            currentIlpPowerSeries.forEach((series, idx) => {
+                const color = series.included_in_p1 === false ? '#ff7a59' : '#16a085';
+                const points = buildHourlyIlpPoints(series.points || []);
+                if (!points.length) return;
+
+                powerChart.data.datasets.push({
+                    label: `${ILP_DATASET_PREFIX} ${series.name} (${series.included_in_p1 === false ? 'outside P1' : 'in P1'})`,
+                    data: points,
+                    ilpSeries: true,
+                    borderColor: color,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: series.included_in_p1 === false ? [8, 4] : [4, 4],
+                    stepped: 'after',
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0,
+                    order: 5 + idx,
+                });
+            });
+
+            powerChart.update('none');
+        }
+
+        function buildHourlyIlpPoints(points) {
+            if (!points.length) return [];
+            const series = points.map(point => ({
+                x: new Date(point.start),
+                y: point.avg_power_w,
+                coveragePercent: point.coverage_percent,
+                partial: point.partial
+            }));
+            const last = points[points.length - 1];
+            series.push({
+                x: new Date(last.end),
+                y: last.avg_power_w,
+                coveragePercent: last.coverage_percent,
+                partial: last.partial
+            });
+            return series;
         }
         
         // --- Two-finger horizontal pan -----------------------------------
@@ -1123,6 +2038,7 @@
                 start: new Date(win.start).toISOString(),
                 end: new Date(win.end).toISOString()
             };
+            clearDashboardRangeSelection();
             
             clearTimeout(panFetchTimer);
             panFetchTimer = setTimeout(() => { updateChart(); }, 200);

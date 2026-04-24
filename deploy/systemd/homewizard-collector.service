@@ -1,0 +1,17 @@
+[Unit]
+Description=HomeWizard P1 collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=homewizard
+Group=homewizard
+WorkingDirectory=/opt/homewizard
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/homewizard/start_data_collector.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

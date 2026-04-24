@@ -272,6 +272,84 @@
         .quick-period:hover {
             background: #555;
         }
+
+        .range-summary-panel {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            width: min(380px, calc(100% - 40px));
+            background: rgba(0, 0, 0, 0.82);
+            border: 1px solid rgba(52, 152, 219, 0.35);
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        }
+
+        .range-summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .range-summary-header h4 {
+            margin: 0;
+            color: #fff;
+            font-size: 0.95rem;
+        }
+
+        .btn-compact {
+            padding: 0.25rem 0.55rem;
+            font-size: 0.75rem;
+        }
+
+        .range-summary-empty,
+        .range-summary-note,
+        .range-summary-error {
+            color: #b8c7d7;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .range-summary-error {
+            color: #ff9f8f;
+        }
+
+        .range-summary-times {
+            color: #fff;
+            font-size: 0.84rem;
+            line-height: 1.4;
+            margin-bottom: 0.7rem;
+        }
+
+        .range-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.55rem;
+            margin-bottom: 0.7rem;
+        }
+
+        .range-summary-stat {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 0.55rem 0.65rem;
+        }
+
+        .range-summary-value {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .range-summary-label {
+            color: #9fb3c8;
+            font-size: 0.72rem;
+            margin-top: 0.18rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
     </style>
 </head>
 <body>
@@ -307,6 +385,10 @@
                 <i class="fas fa-plug"></i> Plugs
             </button>
 
+            <button class="btn btn-secondary" onclick="toggleIlpPower()" id="ilpPowerBtn" title="Overlay hourly ILP power. Yläkerta is included in this P1 meter; Iso huone is outside it.">
+                <i class="fas fa-fan"></i> ILP
+            </button>
+
             <button class="btn btn-secondary" onclick="addMarker()" id="addMarkerBtn">
                 <i class="fas fa-map-marker-alt"></i> Add Marker
             </button>
@@ -324,6 +406,16 @@
             <h4>Markers</h4>
             <div id="markerList">
                 <div class="marker-text" style="color: #666; font-style: italic;">No markers</div>
+            </div>
+        </div>
+
+        <div class="range-summary-panel" id="rangeSummaryPanel">
+            <div class="range-summary-header">
+                <h4>Selected Range</h4>
+                <button class="btn btn-secondary btn-compact" id="clearRangeSelectionBtn" onclick="clearRangeSelection()" style="display: none;">Clear</button>
+            </div>
+            <div id="rangeSummaryBody" class="range-summary-empty">
+                Drag across the chart to measure energy and cost for any span. Click without dragging still adds a marker.
             </div>
         </div>
     </main>
@@ -370,13 +462,37 @@
         const SPOT_PRICE_LABEL = 'Spot price (c/kWh)';
         let showPlugs = localStorage.getItem('showPlugs') === '1';
         let currentBreakdown = null;
+        let showIlpPower = localStorage.getItem('showIlpPower') !== '0';
+        let currentIlpPowerSeries = [];
         const PLUG_STACK_ID = 'consumption';
         const UNACCOUNTED_LABEL = 'Unaccounted';
+        const ILP_DATASET_PREFIX = 'ILP hourly avg:';
+        const INVOICE_ESTIMATE_LABEL = 'Invoice estimate (W)';
+        const RANGE_SELECTION_MIN_PIXELS = 12;
         // Stable palette for plug stacks
         const PLUG_COLORS = [
             '#2ecc71', '#9b59b6', '#1abc9c', '#e67e22', '#3498db',
             '#e91e63', '#00bcd4', '#8bc34a', '#ff9800', '#607d8b'
         ];
+        let selectedRange = {
+            startMs: null,
+            endMs: null,
+            dragStartPx: null,
+            dragCurrentPx: null,
+            dragActive: false,
+            loading: false,
+            error: '',
+            summary: null,
+            suppressNextClick: false
+        };
+        let rangeSummaryRequestId = 0;
+        const rangeSelectionPlugin = {
+            id: 'rangeSelectionOverlay',
+            afterDatasetsDraw(chart) {
+                drawSelectedRangeOverlay(chart);
+            }
+        };
+        Chart.register(rangeSelectionPlugin);
         
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -385,8 +501,355 @@
             setupTimeControls();
             updateSpotPriceButton();
             updatePlugsButton();
+            updateIlpPowerButton();
             loadData();
         });
+
+        function formatChartTimestamp(value) {
+            if (!value) return '';
+            const date = value instanceof Date ? value : new Date(value);
+            return date.toLocaleString([], {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        function formatPowerTooltipLabel(ds, value) {
+            const rounded = Math.round(value).toLocaleString();
+            if (!ds || !ds.label) return `${rounded}W`;
+            if (ds.label === 'Total Power (W)') return `Whole house (P1): ${rounded}W`;
+            if (ds.invoiceEstimateSeries) return `Invoice estimate: ${rounded}W`;
+            if (ds.label === UNACCOUNTED_LABEL) return `Unaccounted: ${rounded}W`;
+            if (ds.ilpSeries) return `${ds.label.replace(ILP_DATASET_PREFIX + ' ', '')}: ${rounded}W avg`;
+            return `${ds.label}: ${rounded}W`;
+        }
+
+        function getChartDataset(label) {
+            return powerChart && powerChart.data.datasets.find(ds => ds.label === label);
+        }
+
+        function splitHistorySeries(data) {
+            const measuredPoints = [];
+            const estimatedPoints = [];
+            let lastEstimateSegmentId = null;
+
+            data.forEach(point => {
+                const entry = {
+                    x: new Date(point.datetime),
+                    y: point.total_power_w,
+                    estimated: !!point.estimated,
+                    invoiceId: point.invoice_id,
+                    invoiceNumber: point.invoice_number,
+                    sellerName: point.seller_name,
+                    estimateSegmentId: point.estimate_segment_id
+                };
+
+                if (point.estimated) {
+                    if (lastEstimateSegmentId !== null && point.estimate_segment_id !== lastEstimateSegmentId) {
+                        estimatedPoints.push({ x: entry.x, y: null });
+                    }
+                    estimatedPoints.push(entry);
+                    lastEstimateSegmentId = point.estimate_segment_id || lastEstimateSegmentId;
+                } else {
+                    measuredPoints.push(entry);
+                    lastEstimateSegmentId = null;
+                }
+            });
+
+            return { measuredPoints, estimatedPoints };
+        }
+
+        function formatRangeDuration(seconds) {
+            const totalSeconds = Math.max(0, Math.round(seconds || 0));
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const secs = totalSeconds % 60;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            if (minutes > 0) return `${minutes}m ${secs}s`;
+            return `${secs}s`;
+        }
+
+        function formatEnergyKwh(value) {
+            return `${(value || 0).toFixed(2)} kWh`;
+        }
+
+        function formatMoney(value) {
+            return `€${(value || 0).toFixed(2)}`;
+        }
+
+        function formatPowerValue(value) {
+            return `${Math.round(value || 0).toLocaleString()} W`;
+        }
+
+        function clampSelectionPx(x) {
+            const area = powerChart && powerChart.chartArea;
+            if (!area) return x;
+            return Math.max(area.left, Math.min(area.right, x));
+        }
+
+        function getSelectedRangePixels(chart) {
+            const area = chart && chart.chartArea;
+            const xScale = chart && chart.scales && chart.scales.x;
+            if (!area || !xScale) return null;
+
+            if (selectedRange.dragActive && selectedRange.dragStartPx != null && selectedRange.dragCurrentPx != null) {
+                return {
+                    left: Math.max(area.left, Math.min(selectedRange.dragStartPx, selectedRange.dragCurrentPx)),
+                    right: Math.min(area.right, Math.max(selectedRange.dragStartPx, selectedRange.dragCurrentPx)),
+                    dragging: true
+                };
+            }
+
+            if (selectedRange.startMs == null || selectedRange.endMs == null) return null;
+            const left = xScale.getPixelForValue(selectedRange.startMs);
+            const right = xScale.getPixelForValue(selectedRange.endMs);
+            if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
+            if (right < area.left || left > area.right) return null;
+            return {
+                left: Math.max(area.left, Math.min(left, right)),
+                right: Math.min(area.right, Math.max(left, right)),
+                dragging: false
+            };
+        }
+
+        function drawSelectedRangeOverlay(chart) {
+            const selection = getSelectedRangePixels(chart);
+            if (!selection) return;
+            const width = selection.right - selection.left;
+            if (width < 1) return;
+
+            const { ctx, chartArea } = chart;
+            ctx.save();
+            ctx.fillStyle = selection.dragging ? 'rgba(52, 152, 219, 0.18)' : 'rgba(52, 152, 219, 0.13)';
+            ctx.strokeStyle = selection.dragging ? 'rgba(116, 185, 255, 0.95)' : 'rgba(116, 185, 255, 0.75)';
+            ctx.lineWidth = 1;
+            ctx.fillRect(selection.left, chartArea.top, width, chartArea.bottom - chartArea.top);
+            ctx.strokeRect(selection.left, chartArea.top, width, chartArea.bottom - chartArea.top);
+            ctx.restore();
+        }
+
+        function clearRangeSelection() {
+            rangeSummaryRequestId += 1;
+            selectedRange = {
+                startMs: null,
+                endMs: null,
+                dragStartPx: null,
+                dragCurrentPx: null,
+                dragActive: false,
+                loading: false,
+                error: '',
+                summary: null,
+                suppressNextClick: false
+            };
+            renderSelectedRangeSummary();
+            if (powerChart) powerChart.draw();
+        }
+
+        function setSelectedRangeFromPixels(startPx, endPx) {
+            const area = powerChart && powerChart.chartArea;
+            const xScale = powerChart && powerChart.scales && powerChart.scales.x;
+            if (!area || !xScale) return;
+            if (Math.abs(endPx - startPx) < RANGE_SELECTION_MIN_PIXELS) return;
+
+            const startMs = xScale.getValueForPixel(Math.min(startPx, endPx));
+            const endMs = xScale.getValueForPixel(Math.max(startPx, endPx));
+            if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return;
+
+            selectedRange.startMs = startMs;
+            selectedRange.endMs = endMs;
+            selectedRange.loading = true;
+            selectedRange.error = '';
+            selectedRange.summary = null;
+            renderSelectedRangeSummary();
+            loadSelectedRangeSummary();
+            if (powerChart) powerChart.draw();
+        }
+
+        function loadSelectedRangeSummary() {
+            if (selectedRange.startMs == null || selectedRange.endMs == null) return;
+            const requestId = ++rangeSummaryRequestId;
+            const startIso = new Date(selectedRange.startMs).toISOString();
+            const endIso = new Date(selectedRange.endMs).toISOString();
+
+            fetch(`/api/history/summary?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}`)
+                .then(response => response.json().then(payload => ({ ok: response.ok, payload })))
+                .then(({ ok, payload }) => {
+                    if (requestId !== rangeSummaryRequestId) return;
+                    if (!ok) {
+                        throw new Error(payload.error || 'Failed to summarize selected range');
+                    }
+                    selectedRange.loading = false;
+                    selectedRange.error = '';
+                    selectedRange.summary = payload;
+                    renderSelectedRangeSummary();
+                })
+                .catch(error => {
+                    if (requestId !== rangeSummaryRequestId) return;
+                    selectedRange.loading = false;
+                    selectedRange.summary = null;
+                    selectedRange.error = error.message || 'Failed to summarize selected range';
+                    renderSelectedRangeSummary();
+                });
+        }
+
+        function renderSelectedRangeSummary() {
+            const body = document.getElementById('rangeSummaryBody');
+            const clearBtn = document.getElementById('clearRangeSelectionBtn');
+            if (!body || !clearBtn) return;
+
+            const hasSelection = selectedRange.startMs != null && selectedRange.endMs != null;
+            clearBtn.style.display = hasSelection ? 'inline-flex' : 'none';
+
+            if (!hasSelection) {
+                body.className = 'range-summary-empty';
+                body.innerHTML = 'Drag across the chart to measure energy and cost for any span. Click without dragging still adds a marker.';
+                return;
+            }
+
+            const startLabel = formatChartTimestamp(new Date(selectedRange.startMs));
+            const endLabel = formatChartTimestamp(new Date(selectedRange.endMs));
+
+            if (selectedRange.loading) {
+                body.className = 'range-summary-note';
+                body.innerHTML = `<div class="range-summary-times">${startLabel}<br>${endLabel}</div>Calculating energy and cost for the selected range…`;
+                return;
+            }
+
+            if (selectedRange.error) {
+                body.className = 'range-summary-error';
+                body.innerHTML = `<div class="range-summary-times">${startLabel}<br>${endLabel}</div>${selectedRange.error}`;
+                return;
+            }
+
+            const summary = selectedRange.summary;
+            if (!summary) {
+                body.className = 'range-summary-empty';
+                body.textContent = 'Select a range to see summary details.';
+                return;
+            }
+
+            const spotCoverage = Number(summary.spot_price_coverage_pct || 0);
+            const measuredCoverage = Number(summary.measured_coverage_pct || 0);
+            const p1CounterCoverage = Number(summary.p1_counter_fill_coverage_pct || 0);
+            const invoiceCoverage = Number(summary.invoice_estimate_coverage_pct || 0);
+            const invoicePriceCoverage = Number(summary.invoice_price_coverage_pct || 0);
+            const deltaCoverage = Number(summary.invoice_delta_coverage_pct || 0);
+            const costLabel = spotCoverage >= 99.9 ? 'Spot Cost' : 'Est. Cost';
+            let note = `Measured coverage ${measuredCoverage.toFixed(1)}%.`;
+            if (p1CounterCoverage > 0.1) {
+                note += ` P1 counter fill covered another ${p1CounterCoverage.toFixed(1)}% (${formatEnergyKwh(summary.p1_counter_fill_kwh)}).`;
+            }
+            if (invoiceCoverage > 0.1) {
+                note += ` Invoice backfill covered another ${invoiceCoverage.toFixed(1)}% (${formatEnergyKwh(summary.invoice_estimate_kwh)}).`;
+            }
+            if (invoicePriceCoverage > 0.1) {
+                note += ` Direct invoice pricing covered ${invoicePriceCoverage.toFixed(1)}% of imported energy.`;
+            } else if (deltaCoverage > 0.1 && summary.price_delta_cents_per_kwh != null) {
+                note += ` Cost used spot plus ${Number(summary.price_delta_cents_per_kwh).toFixed(2)} c/kWh invoice-calibrated delta for ${deltaCoverage.toFixed(1)}% of imported energy.`;
+            } else if (spotCoverage >= 99.9) {
+                note += ' Cost uses historical spot prices.';
+            } else {
+                note += ` Spot-priced ${spotCoverage.toFixed(1)}% of imported energy; the rest uses ${summary.fallback_price_cents_per_kwh.toFixed(2)} c/kWh.`;
+            }
+            if ((summary.export_energy_kwh || 0) > 0.01) {
+                note += ` Exported ${summary.export_energy_kwh.toFixed(2)} kWh during the same span.`;
+            }
+
+            body.className = 'range-summary-note';
+            body.innerHTML = `
+                <div class="range-summary-times">${startLabel}<br>${endLabel}</div>
+                <div class="range-summary-grid">
+                    <div class="range-summary-stat">
+                        <div class="range-summary-value">${formatRangeDuration(summary.duration_seconds)}</div>
+                        <div class="range-summary-label">Duration</div>
+                    </div>
+                    <div class="range-summary-stat">
+                        <div class="range-summary-value">${formatEnergyKwh(summary.import_energy_kwh)}</div>
+                        <div class="range-summary-label">Energy</div>
+                    </div>
+                    <div class="range-summary-stat">
+                        <div class="range-summary-value">${formatMoney(summary.estimated_cost_eur)}</div>
+                        <div class="range-summary-label">${costLabel}</div>
+                    </div>
+                    <div class="range-summary-stat">
+                        <div class="range-summary-value">${formatPowerValue(summary.max_power_w)}</div>
+                        <div class="range-summary-label">Peak</div>
+                    </div>
+                </div>
+                <div class="range-summary-note">${note}</div>
+            `;
+        }
+
+        function attachRangeSelectionGesture(canvas) {
+            let pointerState = null;
+
+            const finishSelection = (event, cancelled = false) => {
+                if (!pointerState) return;
+                const rect = canvas.getBoundingClientRect();
+                const endPx = clampSelectionPx(event ? (event.clientX - rect.left) : pointerState.startPx);
+                const wasDragging = !!pointerState.dragging;
+                selectedRange.dragActive = false;
+                selectedRange.dragStartPx = null;
+                selectedRange.dragCurrentPx = null;
+
+                if (!cancelled && wasDragging) {
+                    setSelectedRangeFromPixels(pointerState.startPx, endPx);
+                    selectedRange.suppressNextClick = true;
+                }
+
+                pointerState = null;
+                if (powerChart) powerChart.draw();
+            };
+
+            canvas.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0 || !powerChart || !powerChart.chartArea) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const area = powerChart.chartArea;
+                if (x < area.left || x > area.right || y < area.top || y > area.bottom) return;
+
+                pointerState = {
+                    id: event.pointerId,
+                    startPx: clampSelectionPx(x),
+                    startPy: y,
+                    dragging: false
+                };
+                selectedRange.dragActive = true;
+                selectedRange.dragStartPx = pointerState.startPx;
+                selectedRange.dragCurrentPx = pointerState.startPx;
+                canvas.setPointerCapture?.(event.pointerId);
+            });
+
+            canvas.addEventListener('pointermove', (event) => {
+                if (!pointerState || event.pointerId !== pointerState.id) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = clampSelectionPx(event.clientX - rect.left);
+                const y = event.clientY - rect.top;
+                const dx = x - pointerState.startPx;
+                const dy = y - pointerState.startPy;
+
+                if (!pointerState.dragging) {
+                    if (Math.abs(dx) < RANGE_SELECTION_MIN_PIXELS) return;
+                    if (Math.abs(dx) < Math.abs(dy)) return;
+                    pointerState.dragging = true;
+                }
+
+                selectedRange.dragCurrentPx = x;
+                if (powerChart) powerChart.draw();
+                event.preventDefault();
+            }, { passive: false });
+
+            canvas.addEventListener('pointerup', (event) => finishSelection(event, false));
+            canvas.addEventListener('pointercancel', (event) => finishSelection(event, true));
+            canvas.addEventListener('pointerleave', (event) => {
+                if (pointerState && pointerState.dragging) finishSelection(event, false);
+            });
+        }
         
         function initializeSocket() {
             socket = io();
@@ -416,6 +879,7 @@
                 data: {
                     datasets: [{
                         label: 'Total Power (W)',
+                        mainPowerSeries: true,
                         data: [],
                         borderColor: '#3498db',
                         backgroundColor: 'rgba(52, 152, 219, 0.1)',
@@ -423,6 +887,19 @@
                         fill: true,
                         pointRadius: 0,
                         pointHoverRadius: 5
+                    }, {
+                        label: INVOICE_ESTIMATE_LABEL,
+                        data: [],
+                        invoiceEstimateSeries: true,
+                        borderColor: '#ff9f43',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [8, 4],
+                        tension: 0,
+                        fill: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        spanGaps: false
                     }]
                 },
                 options: {
@@ -492,16 +969,41 @@
                             borderColor: '#3498db',
                             borderWidth: 1,
                             callbacks: {
+                                title: function(items) {
+                                    if (!items || !items.length) return '';
+                                    const markerItem = items.find(item => item.dataset && item.dataset.label === 'Markers' && item.raw && item.raw.marker);
+                                    if (markerItem) {
+                                        return formatChartTimestamp(markerItem.raw.marker.datetime || markerItem.raw.x);
+                                    }
+                                    const first = items[0];
+                                    return formatChartTimestamp((first.raw && first.raw.x) || first.parsed.x);
+                                },
                                 label: function(context) {
                                     const label = context.dataset && context.dataset.label;
+                                    const ds = context.dataset || {};
                                     if (label === 'Markers' && context.raw && context.raw.marker) {
-                                        const marker = context.raw.marker;
-                                        return [`📍 ${marker.label}`, marker.description || ''].filter(Boolean);
+                                        return `📍 Marker: ${context.raw.marker.label}`;
                                     }
                                     if (label === SPOT_PRICE_LABEL) {
                                         return `Spot: ${context.parsed.y.toFixed(2)} c/kWh`;
                                     }
-                                    return `Power: ${context.parsed.y}W`;
+                                    return formatPowerTooltipLabel(ds, context.parsed.y);
+                                },
+                                afterLabel: function(context) {
+                                    const ds = context.dataset || {};
+                                    if (ds.label === 'Markers' && context.raw && context.raw.marker) {
+                                        const marker = context.raw.marker;
+                                        return marker.description ? [`Notes: ${marker.description}`] : [];
+                                    }
+                                    if (ds.invoiceEstimateSeries && context.raw && context.raw.invoiceNumber) {
+                                        const seller = context.raw.sellerName ? ` (${context.raw.sellerName})` : '';
+                                        return `Estimated from invoice ${context.raw.invoiceNumber}${seller}`;
+                                    }
+                                    if (ds.ilpSeries && context.raw && context.raw.coveragePercent != null) {
+                                        const suffix = context.raw.partial ? ' (partial hour)' : '';
+                                        return `Coverage: ${context.raw.coveragePercent.toFixed(1)}%${suffix}`;
+                                    }
+                                    return '';
                                 }
                             }
                         }
@@ -510,12 +1012,16 @@
                         ctx.canvas.style.cursor = activeElements.length > 0 ? 'pointer' : 'crosshair';
                     },
                     onClick: (event) => {
+                        if (selectedRange.suppressNextClick) {
+                            selectedRange.suppressNextClick = false;
+                            return;
+                        }
                         const points = powerChart.getElementsAtEventForMode(event, 'nearest', { intersect: false }, true);
                         if (points.length > 0) {
                             const point = points[0];
                             const ds = powerChart.data.datasets[point.datasetIndex];
                             // Only allow marker placement on the power line, not overlays
-                            if (!ds || ds.label !== 'Total Power (W)') return;
+                            if (!ds || (!ds.mainPowerSeries && !ds.invoiceEstimateSeries && ds.label !== 'Total Power (W)')) return;
                             const timestamp = ds.data[point.index].x;
                             selectedTimestamp = new Date(timestamp).getTime() / 1000;
                             openMarkerModal();
@@ -524,6 +1030,7 @@
                 }
             });
             attachPanGesture(ctx.canvas);
+            attachRangeSelectionGesture(ctx.canvas);
         }
         
         // --- Two-finger horizontal pan -----------------------------------
@@ -558,6 +1065,7 @@
                 start: new Date(win.start).toISOString(),
                 end: new Date(win.end).toISOString()
             };
+            clearRangeSelection();
             
             clearTimeout(panFetchTimer);
             panFetchTimer = setTimeout(() => { loadData(); }, 200);
@@ -679,6 +1187,7 @@
                     const hours = parseInt(this.dataset.hours);
                     currentTimeRange = { hours: hours };
                     resetPanState();
+                    clearRangeSelection();
                     loadData();
                 });
             });
@@ -710,6 +1219,11 @@
                     loadMarkers();
                     if (showSpotPrice) loadSpotPrice();
                     if (showPlugs) loadPlugsBreakdown();
+                    if (showIlpPower) loadIlpPowerSeries();
+                    else {
+                        currentIlpPowerSeries = [];
+                        renderIlpPowerSeries();
+                    }
                 })
                 .catch(error => console.error('Error loading data:', error));
         }
@@ -731,6 +1245,25 @@
             if (!btn) return;
             btn.classList.toggle('btn-primary', showPlugs);
             btn.classList.toggle('btn-secondary', !showPlugs);
+        }
+
+        function toggleIlpPower() {
+            showIlpPower = !showIlpPower;
+            localStorage.setItem('showIlpPower', showIlpPower ? '1' : '0');
+            updateIlpPowerButton();
+            if (showIlpPower) {
+                loadIlpPowerSeries();
+            } else {
+                currentIlpPowerSeries = [];
+                renderIlpPowerSeries();
+            }
+        }
+
+        function updateIlpPowerButton() {
+            const btn = document.getElementById('ilpPowerBtn');
+            if (!btn) return;
+            btn.classList.toggle('btn-primary', showIlpPower);
+            btn.classList.toggle('btn-secondary', !showIlpPower);
         }
 
         function loadPlugsBreakdown() {
@@ -824,6 +1357,74 @@
             powerChart.update('none');
         }
 
+        function loadIlpPowerSeries() {
+            if (!showIlpPower) return;
+            const win = resolveWindowIso();
+            if (!win) return;
+            fetch(`/api/melcloud/power-series?start=${encodeURIComponent(win.start)}&end=${encodeURIComponent(win.end)}`)
+                .then(r => r.json())
+                .then(payload => {
+                    currentIlpPowerSeries = (payload && payload.series) || [];
+                    renderIlpPowerSeries();
+                })
+                .catch(err => {
+                    console.error('ILP power fetch failed', err);
+                    currentIlpPowerSeries = [];
+                    renderIlpPowerSeries();
+                });
+        }
+
+        function renderIlpPowerSeries() {
+            powerChart.data.datasets = powerChart.data.datasets.filter(d => !d.ilpSeries);
+
+            if (!showIlpPower || !currentIlpPowerSeries.length) {
+                powerChart.update('none');
+                return;
+            }
+
+            currentIlpPowerSeries.forEach((series, idx) => {
+                const color = series.included_in_p1 === false ? '#ff7a59' : '#16a085';
+                const points = buildHourlyIlpPoints(series.points || []);
+                if (!points.length) return;
+
+                powerChart.data.datasets.push({
+                    label: `${ILP_DATASET_PREFIX} ${series.name} (${series.included_in_p1 === false ? 'outside P1' : 'in P1'})`,
+                    data: points,
+                    ilpSeries: true,
+                    borderColor: color,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: series.included_in_p1 === false ? [8, 4] : [4, 4],
+                    stepped: 'after',
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0,
+                    order: 6 + idx,
+                });
+            });
+
+            powerChart.update('none');
+        }
+
+        function buildHourlyIlpPoints(points) {
+            if (!points.length) return [];
+            const series = points.map(point => ({
+                x: new Date(point.start),
+                y: point.avg_power_w,
+                coveragePercent: point.coverage_percent,
+                partial: point.partial
+            }));
+            const last = points[points.length - 1];
+            series.push({
+                x: new Date(last.end),
+                y: last.avg_power_w,
+                coveragePercent: last.coverage_percent,
+                partial: last.partial
+            });
+            return series;
+        }
+
         function hexToRgba(hex, alpha) {
             const h = hex.replace('#', '');
             const r = parseInt(h.substring(0, 2), 16);
@@ -912,12 +1513,11 @@
         }
         
         function updateChart(data) {
-            const chartData = data.map(point => ({
-                x: new Date(point.datetime),
-                y: point.total_power_w
-            })).reverse(); // Reverse to get chronological order
-            
-            powerChart.data.datasets[0].data = chartData;
+            const { measuredPoints, estimatedPoints } = splitHistorySeries(data);
+            const totalDs = getChartDataset('Total Power (W)');
+            const invoiceDs = getChartDataset(INVOICE_ESTIMATE_LABEL);
+            if (totalDs) totalDs.data = measuredPoints;
+            if (invoiceDs) invoiceDs.data = estimatedPoints;
             powerChart.update('none'); // No animation for better performance
         }
         
@@ -935,10 +1535,26 @@
                 .then(response => response.json())
                 .then(markers => {
                     currentMarkers = markers;
+                    reconcileHighlightedMarker();
                     updateMarkerLegend();
                     addMarkersToChart();
                 })
                 .catch(error => console.error('Error loading markers:', error));
+        }
+
+        function clearMarkerHighlightState() {
+            highlightedMarkerId = null;
+            if (!powerChart) return;
+            powerChart.setActiveElements([]);
+            powerChart.tooltip.setActiveElements([], { x: 0, y: 0 });
+        }
+
+        function reconcileHighlightedMarker() {
+            if (highlightedMarkerId == null) return;
+            const stillExists = currentMarkers.some(marker => marker.id === highlightedMarkerId);
+            if (!stillExists) {
+                clearMarkerHighlightState();
+            }
         }
         
         function addMarkersToChart() {
@@ -965,28 +1581,33 @@
                     pointBorderColor: (ctx) => isHighlighted(ctx) ? '#ffd700' : '#fff',
                     pointBorderWidth: (ctx) => isHighlighted(ctx) ? 4 : 2
                 });
+            } else {
+                clearMarkerHighlightState();
             }
             
             powerChart.update('none');
         }
         
         function getYValueAtTime(targetTime) {
-            const powerData = powerChart.data.datasets[0].data;
-            if (!powerData || powerData.length === 0) return 0;
-            
-            // Find the closest data point
-            let closest = powerData[0];
-            let minDiff = Math.abs(new Date(targetTime) - new Date(closest.x));
-            
-            for (let point of powerData) {
-                const diff = Math.abs(new Date(targetTime) - new Date(point.x));
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closest = point;
+            const powerDatasets = powerChart.data.datasets.filter(
+                dataset => dataset.mainPowerSeries || dataset.invoiceEstimateSeries
+            );
+            let closest = null;
+            let minDiff = Infinity;
+
+            for (const dataset of powerDatasets) {
+                const points = Array.isArray(dataset.data) ? dataset.data : [];
+                for (const point of points) {
+                    if (!point || point.y == null) continue;
+                    const diff = Math.abs(new Date(targetTime) - new Date(point.x));
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closest = point;
+                    }
                 }
             }
-            
-            return closest.y || 0;
+
+            return closest && closest.y != null ? closest.y : 0;
         }
         
         function updateMarkerLegend() {
@@ -1000,7 +1621,7 @@
             markerList.innerHTML = currentMarkers.map(marker => `
                 <div class="marker-item" data-marker-id="${marker.id}">
                     <div class="marker-color" style="background-color: ${marker.color}"></div>
-                    <div class="marker-text" title="${marker.description || ''}">${marker.label}</div>
+                    <div class="marker-text" title="${[marker.label, formatChartTimestamp(marker.datetime), marker.description || ''].filter(Boolean).join('\n')}">${marker.label}</div>
                     <button class="marker-delete" onclick="deleteMarker(${marker.id}); event.stopPropagation();" title="Delete marker">
                         <i class="fas fa-times"></i>
                     </button>
@@ -1030,7 +1651,9 @@
                 const data = powerChart.data.datasets[datasetIndex].data;
                 const pointIndex = data.findIndex(d => d.marker && d.marker.id === markerId);
                 if (pointIndex >= 0) {
-                    const active = [{ datasetIndex, index: pointIndex }];
+                    const markerPoint = data[pointIndex];
+                    const targetMs = new Date(markerPoint.x).getTime();
+                    const active = buildTooltipActiveElements(targetMs, datasetIndex, pointIndex);
                     powerChart.setActiveElements(active);
                     const meta = powerChart.getDatasetMeta(datasetIndex);
                     const element = meta && meta.data[pointIndex];
@@ -1040,6 +1663,35 @@
                 }
             }
             powerChart.update('none');
+        }
+
+        function buildTooltipActiveElements(targetMs, markerDatasetIndex, markerPointIndex) {
+            const active = [{ datasetIndex: markerDatasetIndex, index: markerPointIndex }];
+            powerChart.data.datasets.forEach((dataset, datasetIndex) => {
+                if (datasetIndex === markerDatasetIndex || dataset.label === 'Markers' || dataset.hidden) return;
+                const points = Array.isArray(dataset.data) ? dataset.data : [];
+                if (!points.length) return;
+                const nearestIndex = findNearestPointIndex(points, targetMs);
+                if (nearestIndex >= 0) {
+                    active.push({ datasetIndex, index: nearestIndex });
+                }
+            });
+            return active;
+        }
+
+        function findNearestPointIndex(points, targetMs) {
+            let bestIndex = -1;
+            let bestDiff = Infinity;
+            for (let i = 0; i < points.length; i += 1) {
+                const point = points[i];
+                if (!point || !point.x || point.y == null) continue;
+                const diff = Math.abs(new Date(point.x).getTime() - targetMs);
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    bestIndex = i;
+                }
+            }
+            return bestIndex;
         }
         
         function updateCustomRange() {
@@ -1058,6 +1710,7 @@
                 end: new Date(endTime).toISOString()
             };
             resetPanState();
+            clearRangeSelection();
             loadData();
         }
         

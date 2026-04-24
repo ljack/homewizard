@@ -2,19 +2,81 @@
 
 A complete web-based system to monitor, store, and analyze your HomeWizard P1 meter data with real-time dashboard and AI-powered chat analysis.
 
+For product-level behavior and acceptance criteria, see
+[`docs/USER_STORIES.md`](docs/USER_STORIES.md).
+
+For preserving appliance identities when Kasa plugs are moved, see
+[`docs/SMART_PLUG_MOVES.md`](docs/SMART_PLUG_MOVES.md).
+
 ## 🚀 Quick Start
 
-### Web Dashboard (Recommended)
+### Local All-In-One
 ```bash
 ./start_web_monitor.sh
 ```
 Then open: **http://localhost:5001**
+
+### Always-On Collector (Recommended For A Server)
+```bash
+./start_data_collector.sh
+```
+This runs the data gatherer without the UI, so collection can stay up even if the dashboard is stopped or restarted.
+
+### Dashboard Only
+```bash
+./start_web_ui.sh
+```
+Use this when the collector is already running as its own service.
 
 ### Command Line Tools
 ```bash
 ./run_monitor.sh           # Terminal monitoring
 ./run_analyze.sh           # Data analysis  
 ./run_analyze.sh plot      # Generate plots
+```
+
+## 🔁 Server Setup
+
+If you want data gathering to survive browser closes, reboots, or app crashes, run the collector as its own service and keep the dashboard separate.
+
+### Modes
+
+```bash
+python3 web_monitor.py                 # dashboard + collectors
+python3 web_monitor.py --collector-only
+python3 web_monitor.py --web-only
+```
+
+### systemd Example
+
+Service templates live in `deploy/systemd/`:
+
+- `homewizard-collector.service` - always-on data collection
+- `homewizard-dashboard.service` - optional web UI process
+
+Typical setup on a Linux server:
+
+```bash
+sudo cp deploy/systemd/homewizard-collector.service /etc/systemd/system/
+sudo cp deploy/systemd/homewizard-dashboard.service /etc/systemd/system/
+sudoedit /etc/systemd/system/homewizard-collector.service
+sudoedit /etc/systemd/system/homewizard-dashboard.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now homewizard-collector.service
+sudo systemctl enable --now homewizard-dashboard.service
+```
+
+Before enabling them, change these fields in the unit files:
+
+- `User` / `Group`
+- `WorkingDirectory`
+- `ExecStart`
+
+Health checks:
+
+```bash
+./p1_env/bin/python status.py
+curl http://localhost:5001/api/monitoring/status
 ```
 
 ## 🜐 Web Dashboard Features
@@ -90,7 +152,7 @@ CSV fields:
 
 **Requirements:**
 - Python 3.x with virtual environment (`p1_env/`)
-- HomeWizard P1 meter on local network (default: `http://192.168.11.35` — edit `p1_monitor.py` to change)
+- HomeWizard P1 meter on local network (`P1_METER_URL`, default: `http://homewizard.local`)
 - Dependencies: `requests`, `pandas`, `matplotlib`, `flask`, `flask-socketio`
 
 **Files:**
@@ -103,12 +165,18 @@ CSV fields:
 - `status.py` — Quick status snapshot
 
 *Scripts*
-- `start_web_monitor.sh` — Launch the web dashboard
+- `start_web_monitor.sh` — Launch dashboard + embedded collectors
+- `start_data_collector.sh` — Launch collector-only mode
+- `start_web_ui.sh` — Launch dashboard without collectors
 - `run_monitor.sh` / `run_analyze.sh` — CLI convenience wrappers
+
+*Deployment*
+- `deploy/systemd/homewizard-collector.service` — systemd unit for always-on collection
+- `deploy/systemd/homewizard-dashboard.service` — systemd unit for dashboard-only mode
 
 *Data & database*
 - `p1_data.csv` — CLI monitor data
-- `p1_web_data.csv` — Web monitor CSV mirror
+- `p1_web_data.csv` — Collector/web CSV mirror
 - `p1_data.db` — SQLite DB (readings + markers)
 - `init_markers_db.py` — Initialize the markers table
 - `test_markers.py` — Marker tests
@@ -122,11 +190,12 @@ CSV fields:
 
 ## 🎯 Next Steps
 
-1. **Start collecting data**: Run `./run_monitor.sh` 
-2. **Let it run for a few hours** to see patterns
-3. **Check analysis**: Use `./run_analyze.sh` to see trends
-4. **View plots**: Use `./run_analyze.sh plot` for visual analysis
-5. **Plan phase rebalancing** based on the data collected
+1. **For a server install**: Prefer `./start_data_collector.sh`
+2. **For a one-process local run**: Use `./start_web_monitor.sh`
+3. **Let it run for a few hours** to see patterns
+4. **Check analysis**: Use `./run_analyze.sh` to see trends
+5. **View plots**: Use `./run_analyze.sh plot` for visual analysis
+6. **Plan phase rebalancing** based on the data collected
 
 ## 📈 Advanced Chart Features
 

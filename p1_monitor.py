@@ -10,11 +10,11 @@ import requests
 from datetime import datetime
 import csv
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 class P1Monitor:
-    def __init__(self, meter_url: str = "http://192.168.11.35", data_file: str = "p1_data.csv"):
-        self.meter_url = meter_url
+    def __init__(self, meter_url: Optional[str] = None, data_file: str = "p1_data.csv"):
+        self.meter_url = meter_url or os.environ.get("P1_METER_URL", "http://homewizard.local")
         self.data_file = data_file
         self.setup_data_file()
     

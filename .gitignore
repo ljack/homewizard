@@ -8,3 +8,11 @@ p1_data.db
 p1_data.csv
 p1_web_data.csv
 p1_plot_*.png
+invoice_pdfs/
+devices.json
+tinytuya.json
+snapshot.json
+tuya-raw.json
+tuya_devices.json
+docs/APPLIANCE_PROFILES.md
+docs/appliance_profiles*.json

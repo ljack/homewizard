@@ -16,6 +16,7 @@ but the old accessor still works and is ~3x less code; revisit when removed.
 from __future__ import annotations
 
 import asyncio
+import os
 import sqlite3
 import time
 from datetime import datetime
@@ -23,7 +24,11 @@ from typing import Any, Dict, List, Optional
 
 from kasa import Discover
 
-DEFAULT_SUBNETS = ["192.168.11.0/24"]
+DEFAULT_SUBNETS = [
+    subnet.strip()
+    for subnet in os.environ.get("KASA_SUBNETS", "192.168.1.0/24").split(",")
+    if subnet.strip()
+]
 SCAN_CONCURRENCY = 50
 SCAN_TIMEOUT_SECONDS = 3
 READ_TIMEOUT_SECONDS = 4
