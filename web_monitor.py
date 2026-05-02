@@ -12,6 +12,7 @@ import hashlib
 import secrets
 import shutil
 import signal
+import socket
 import threading
 import time
 import requests
@@ -64,6 +65,7 @@ latest_tuya_by_uid = {}
 latest_melcloud_by_device = {}
 monitoring_active = False
 collector_supervisor = None
+mdns_advertiser = None
 MELCLOUD_POLL_INTERVAL_SECONDS = 120
 pi_chat = PiAgentChat()  # legacy fallback (keyword templates, no API key needed)
 power_agent = PowerAnalysisAgent()  # agentic Claude-backed analyzer
@@ -100,6 +102,356 @@ MELCLOUD_P1_SCOPE_BY_NAME = {
 }
 
 
+class MdnsAdvertiser:
+    """Advertise the dashboard over Bonjour/mDNS when a local tool is available."""
+
+    def __init__(self, port: int, service_name: str | None = None):
+        self.port = port
+        self.service_name = service_name or os.environ.get('MDNS_SERVICE_NAME', 'HomeWizard P1')
+        self.processes = []
+
+    @staticmethod
+    def enabled() -> bool:
+        return os.environ.get('MDNS_ENABLED', '1').lower() not in {'0', 'false', 'no', 'off'}
+
+    def _service_types(self):
+        configured = os.environ.get('MDNS_SERVICE_TYPES')
+        if configured:
+            return [item.strip() for item in configured.split(',') if item.strip()]
+        return ['_http._tcp', '_homewizard-p1._tcp']
+
+    def _txt_records(self):
+        host = socket.gethostname().split('.')[0]
+        return [
+            'path=/',
+            f'url=http://{host}.local:{self.port}/',
+            'app=homewizard-p1',
+        ]
+
+    def start(self):
+        if not self.enabled():
+            print("📡 mDNS advertising disabled (MDNS_ENABLED=0).")
+            return False
+
+        dns_sd = shutil.which('dns-sd')
+        if not dns_sd:
+            print("⚠️  mDNS advertising skipped: dns-sd was not found.")
+            return False
+
+        started = 0
+        for service_type in self._service_types():
+            cmd = [
+                dns_sd,
+                '-R',
+                self.service_name,
+                service_type,
+                'local',
+                str(self.port),
+                *self._txt_records(),
+            ]
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except OSError as exc:
+                print(f"⚠️  Failed to start mDNS advert for {service_type}: {exc}")
+                continue
+
+            self.processes.append(process)
+            started += 1
+
+        if started:
+            print(
+                f"📡 mDNS advertising '{self.service_name}' on port {self.port} "
+                f"({', '.join(self._service_types())})"
+            )
+        return started > 0
+
+    def stop(self):
+        for process in self.processes:
+            if process.poll() is not None:
+                continue
+            process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+        self.processes = []
+
+VENDOR_QUESTIONNAIRE = [
+    {
+        'id': 'fit',
+        'title': 'Fit And Eligibility',
+        'questions': [
+            {
+                'id': 'property_fit',
+                'label': 'Does our property type and planned meter consolidation fit your offer?',
+                'help': 'Mention current main house plus future joined outbuildings, expected ~40 MWh/year.',
+                'type': 'textarea',
+                'compare': True,
+            },
+            {
+                'id': 'spot_contract_required',
+                'label': 'Is pörssisähkö required, recommended, or optional?',
+                'type': 'select',
+                'options': ['Required', 'Recommended', 'Optional', 'Not supported', 'Unknown'],
+                'compare': True,
+            },
+            {
+                'id': 'renovation_constraints',
+                'label': 'Any installation blockers or renovation timing constraints?',
+                'type': 'textarea',
+            },
+            {
+                'id': 'delivery_area',
+                'label': 'Do you install and support this location?',
+                'type': 'text',
+                'compare': True,
+            },
+        ],
+    },
+    {
+        'id': 'solar',
+        'title': 'Solar Design',
+        'questions': [
+            {
+                'id': 'pv_kwp',
+                'label': 'Proposed PV peak size (kWp)',
+                'type': 'number',
+                'unit': 'kWp',
+                'compare': True,
+            },
+            {
+                'id': 'panel_count_model',
+                'label': 'Panel count, wattage, manufacturer, warranty',
+                'type': 'textarea',
+                'compare': True,
+            },
+            {
+                'id': 'pv_limit',
+                'label': 'What is the maximum allowed PV size for this battery/VPP package?',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'roof_layout',
+                'label': 'Proposed roof/building layout, directions, shading assumptions',
+                'type': 'textarea',
+            },
+            {
+                'id': 'annual_yield',
+                'label': 'Estimated annual solar production',
+                'type': 'number',
+                'unit': 'kWh/year',
+                'compare': True,
+            },
+            {
+                'id': 'self_consumption',
+                'label': 'Estimated self-consumption with battery',
+                'type': 'number',
+                'unit': '%',
+                'compare': True,
+            },
+        ],
+    },
+    {
+        'id': 'battery',
+        'title': 'Battery And Inverter',
+        'questions': [
+            {
+                'id': 'battery_kwh',
+                'label': 'Battery nominal/usable capacity',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'battery_chemistry',
+                'label': 'Battery chemistry and model',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'inverter_kw',
+                'label': 'Inverter model and AC power',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'charge_discharge_kw',
+                'label': 'Actual max charge/discharge power and any limits',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'three_phase',
+                'label': 'Is it true 3-phase operation and can it handle unbalanced loads?',
+                'type': 'select',
+                'options': ['Yes', 'Partial / limited', 'No', 'Unknown'],
+                'compare': True,
+            },
+            {
+                'id': 'backup',
+                'label': 'Backup capability: included, optional, 1-phase/3-phase, circuits and power limit',
+                'type': 'textarea',
+                'compare': True,
+            },
+            {
+                'id': 'expandability',
+                'label': 'Can PV, battery, inverter, or backup be expanded later?',
+                'type': 'textarea',
+            },
+        ],
+    },
+    {
+        'id': 'optimization',
+        'title': 'Optimization And Reserve Market',
+        'questions': [
+            {
+                'id': 'optimizer',
+                'label': 'Who operates the optimization/VPP? Elisa, Enion, CheckWatt, other?',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'reserve_markets',
+                'label': 'Which reserve markets are active now for this exact system?',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'reserve_compensation',
+                'label': 'Expected reserve compensation and whether it is fixed/guaranteed',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'reserve_fees',
+                'label': 'Aggregator/platform fees and payout schedule',
+                'type': 'textarea',
+                'compare': True,
+            },
+            {
+                'id': 'own_use_vs_reserve',
+                'label': 'How does the controller prioritize solar self-use, spot arbitrage, backup reserve, and grid reserve?',
+                'type': 'textarea',
+                'compare': True,
+            },
+            {
+                'id': 'data_access',
+                'label': 'Can we access/export battery, PV, price decisions, and reserve events via API/app?',
+                'type': 'textarea',
+            },
+        ],
+    },
+    {
+        'id': 'grid',
+        'title': 'Grid, Permits, And Electrical Fit',
+        'questions': [
+            {
+                'id': 'main_fuse_fit',
+                'label': 'Does the proposal fit the current/planned main fuse size without upgrading?',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'export_limit',
+                'label': 'Export/inverter limit required by grid company',
+                'type': 'text',
+                'compare': True,
+            },
+            {
+                'id': 'paperwork',
+                'label': 'Who handles grid notifications, production contract guidance, and commissioning paperwork?',
+                'type': 'textarea',
+            },
+            {
+                'id': 'metering',
+                'label': 'Any issues with joining the other buildings to this circuit before/after installation?',
+                'type': 'textarea',
+                'compare': True,
+            },
+        ],
+    },
+    {
+        'id': 'commercial',
+        'title': 'Commercials And Risk',
+        'questions': [
+            {
+                'id': 'total_price',
+                'label': 'Total installed price including VAT',
+                'type': 'number',
+                'unit': 'EUR',
+                'compare': True,
+            },
+            {
+                'id': 'solar_price',
+                'label': 'Solar portion price',
+                'type': 'number',
+                'unit': 'EUR',
+                'compare': True,
+            },
+            {
+                'id': 'battery_price',
+                'label': 'Battery/inverter/control portion price',
+                'type': 'number',
+                'unit': 'EUR',
+                'compare': True,
+            },
+            {
+                'id': 'installation_scope',
+                'label': 'What is included/excluded from installation?',
+                'type': 'textarea',
+                'compare': True,
+            },
+            {
+                'id': 'warranty',
+                'label': 'Product, performance, workmanship, and software/support warranties',
+                'type': 'textarea',
+                'compare': True,
+            },
+            {
+                'id': 'payback',
+                'label': 'Their payback estimate and assumptions',
+                'type': 'textarea',
+                'compare': True,
+            },
+            {
+                'id': 'contract_lockin',
+                'label': 'Contract lock-in, financing terms, cancellation, ownership, and what happens if vendor/aggregator exits',
+                'type': 'textarea',
+                'compare': True,
+            },
+        ],
+    },
+    {
+        'id': 'notes',
+        'title': 'Gut Check',
+        'questions': [
+            {
+                'id': 'red_flags',
+                'label': 'Red flags, unclear promises, or claims to verify',
+                'type': 'textarea',
+            },
+            {
+                'id': 'followups',
+                'label': 'Follow-up questions / missing documents',
+                'type': 'textarea',
+            },
+            {
+                'id': 'overall_fit',
+                'label': 'Overall fit for us',
+                'type': 'select',
+                'options': ['Strong candidate', 'Maybe', 'Weak fit', 'Rejected', 'Unknown'],
+                'compare': True,
+            },
+        ],
+    },
+]
+
+
 def get_pricing_context():
     """Resolve current electricity pricing for UI and estimates."""
     spot_price = get_fi_spot_price()
@@ -119,6 +471,73 @@ def get_pricing_context():
 
 def _collection_should_run(stop_event=None):
     return monitoring_active and not (stop_event and stop_event.is_set())
+
+
+def ensure_vendor_offer_tables(db_path: str = KASA_DB_PATH) -> None:
+    """Create tables for solar/battery vendor interview notes."""
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS vendor_offers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vendor_name TEXT NOT NULL,
+                contact_name TEXT,
+                contact_email TEXT,
+                contact_phone TEXT,
+                website TEXT,
+                status TEXT DEFAULT 'Researching',
+                interview_date TEXT,
+                summary TEXT,
+                answers_json TEXT NOT NULL DEFAULT '{}',
+                score_json TEXT NOT NULL DEFAULT '{}',
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            )
+            '''
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def vendor_offer_from_row(row) -> dict:
+    offer = dict(row)
+    for key in ('answers_json', 'score_json'):
+        raw = offer.pop(key, '{}') or '{}'
+        target_key = 'answers' if key == 'answers_json' else 'score'
+        try:
+            offer[target_key] = json.loads(raw)
+        except json.JSONDecodeError:
+            offer[target_key] = {}
+    return offer
+
+
+def normalize_vendor_offer_payload(payload: dict) -> dict:
+    payload = payload or {}
+    vendor_name = (payload.get('vendor_name') or '').strip()
+    if not vendor_name:
+        raise ValueError('vendor_name is required')
+
+    answers = payload.get('answers') or {}
+    score = payload.get('score') or {}
+    if not isinstance(answers, dict):
+        raise ValueError('answers must be an object')
+    if not isinstance(score, dict):
+        raise ValueError('score must be an object')
+
+    return {
+        'vendor_name': vendor_name,
+        'contact_name': (payload.get('contact_name') or '').strip(),
+        'contact_email': (payload.get('contact_email') or '').strip(),
+        'contact_phone': (payload.get('contact_phone') or '').strip(),
+        'website': (payload.get('website') or '').strip(),
+        'status': (payload.get('status') or 'Researching').strip(),
+        'interview_date': (payload.get('interview_date') or '').strip(),
+        'summary': (payload.get('summary') or '').strip(),
+        'answers_json': json.dumps(answers, ensure_ascii=False, sort_keys=True),
+        'score_json': json.dumps(score, ensure_ascii=False, sort_keys=True),
+    }
 
 
 def _wait_for_shutdown(delay_seconds: float, stop_event=None):
@@ -1175,24 +1594,44 @@ def _build_history_payload(start_ts: float, end_ts: float, db_path: str = KASA_D
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        query = '''
+        measured_rows = conn.execute(
+            '''
             SELECT *
             FROM power_data
             WHERE timestamp BETWEEN ? AND ?
             ORDER BY timestamp ASC
-        '''
-        params = [start_ts, end_ts]
-        if measured_limit is not None:
-            query += ' LIMIT ?'
-            params.append(int(measured_limit))
-        measured_rows = conn.execute(query, params).fetchall()
+            ''',
+            (start_ts, end_ts),
+        ).fetchall()
     finally:
         conn.close()
+
+    if measured_limit is not None and len(measured_rows) > measured_limit:
+        measured_rows = _sample_rows_evenly(measured_rows, int(measured_limit))
 
     points = [_row_to_history_point(row) for row in measured_rows]
     points.extend(_build_invoice_history_points(start_ts, end_ts, db_path=db_path))
     points.sort(key=lambda item: (float(item['timestamp']), 0 if item.get('source') == 'measured' else 1))
     return points
+
+
+def _sample_rows_evenly(rows, limit: int):
+    """Keep a bounded chart payload while preserving the full requested range."""
+    if limit <= 0 or len(rows) <= limit:
+        return rows
+    if limit == 1:
+        return [rows[-1]]
+
+    last_index = len(rows) - 1
+    sampled = []
+    previous_index = -1
+    for slot in range(limit):
+        index = round(slot * last_index / (limit - 1))
+        if index == previous_index:
+            continue
+        sampled.append(rows[index])
+        previous_index = index
+    return sampled
 
 class WebP1Monitor(P1Monitor):
     def __init__(self):
@@ -1255,6 +1694,9 @@ class WebP1Monitor(P1Monitor):
 
         # Imported electricity invoice metadata + stored PDFs
         ensure_invoice_tables(KASA_DB_PATH)
+
+        # Vendor interview checklist and offer comparison notes
+        ensure_vendor_offer_tables(KASA_DB_PATH)
     
     def store_data_db(self, data):
         """Store data to SQLite database"""
@@ -1649,6 +2091,13 @@ def chart_view():
     """Full-screen chart page"""
     return render_template('chart_full.html')
 
+
+@app.route('/vendors')
+def vendor_comparison_view():
+    """Solar/battery vendor checklist and offer comparison page."""
+    return render_template('vendor_offers.html')
+
+
 @app.route('/api/latest')
 def get_latest_data():
     """API endpoint for latest data"""
@@ -1912,6 +2361,167 @@ def api_delete_invoice(invoice_id: int):
         return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/vendor-questionnaire', methods=['GET'])
+def api_vendor_questionnaire():
+    return jsonify({'sections': VENDOR_QUESTIONNAIRE})
+
+
+@app.route('/api/vendor-offers', methods=['GET'])
+def api_list_vendor_offers():
+    try:
+        ensure_vendor_offer_tables(KASA_DB_PATH)
+        conn = sqlite3.connect(KASA_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                '''
+                SELECT *
+                FROM vendor_offers
+                ORDER BY updated_at DESC, vendor_name COLLATE NOCASE ASC
+                '''
+            ).fetchall()
+        finally:
+            conn.close()
+        return jsonify({'offers': [vendor_offer_from_row(row) for row in rows]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/vendor-offers', methods=['POST'])
+def api_create_vendor_offer():
+    try:
+        ensure_vendor_offer_tables(KASA_DB_PATH)
+        offer = normalize_vendor_offer_payload(request.get_json(silent=True) or {})
+        now = time.time()
+        conn = sqlite3.connect(KASA_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.execute(
+                '''
+                INSERT INTO vendor_offers (
+                    vendor_name, contact_name, contact_email, contact_phone,
+                    website, status, interview_date, summary, answers_json,
+                    score_json, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    offer['vendor_name'],
+                    offer['contact_name'],
+                    offer['contact_email'],
+                    offer['contact_phone'],
+                    offer['website'],
+                    offer['status'],
+                    offer['interview_date'],
+                    offer['summary'],
+                    offer['answers_json'],
+                    offer['score_json'],
+                    now,
+                    now,
+                ),
+            )
+            offer_id = cursor.lastrowid
+            conn.commit()
+            row = conn.execute('SELECT * FROM vendor_offers WHERE id = ?', (offer_id,)).fetchone()
+        finally:
+            conn.close()
+        return jsonify({'offer': vendor_offer_from_row(row)}), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/vendor-offers/<int:offer_id>', methods=['GET'])
+def api_get_vendor_offer(offer_id: int):
+    try:
+        ensure_vendor_offer_tables(KASA_DB_PATH)
+        conn = sqlite3.connect(KASA_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            row = conn.execute('SELECT * FROM vendor_offers WHERE id = ?', (offer_id,)).fetchone()
+        finally:
+            conn.close()
+        if row is None:
+            return jsonify({'error': 'Vendor offer not found'}), 404
+        return jsonify({'offer': vendor_offer_from_row(row)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/vendor-offers/<int:offer_id>', methods=['PUT'])
+def api_update_vendor_offer(offer_id: int):
+    try:
+        ensure_vendor_offer_tables(KASA_DB_PATH)
+        offer = normalize_vendor_offer_payload(request.get_json(silent=True) or {})
+        now = time.time()
+        conn = sqlite3.connect(KASA_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.execute(
+                '''
+                UPDATE vendor_offers
+                SET vendor_name = ?,
+                    contact_name = ?,
+                    contact_email = ?,
+                    contact_phone = ?,
+                    website = ?,
+                    status = ?,
+                    interview_date = ?,
+                    summary = ?,
+                    answers_json = ?,
+                    score_json = ?,
+                    updated_at = ?
+                WHERE id = ?
+                ''',
+                (
+                    offer['vendor_name'],
+                    offer['contact_name'],
+                    offer['contact_email'],
+                    offer['contact_phone'],
+                    offer['website'],
+                    offer['status'],
+                    offer['interview_date'],
+                    offer['summary'],
+                    offer['answers_json'],
+                    offer['score_json'],
+                    now,
+                    offer_id,
+                ),
+            )
+            if cursor.rowcount == 0:
+                conn.rollback()
+                return jsonify({'error': 'Vendor offer not found'}), 404
+            conn.commit()
+            row = conn.execute('SELECT * FROM vendor_offers WHERE id = ?', (offer_id,)).fetchone()
+        finally:
+            conn.close()
+        return jsonify({'offer': vendor_offer_from_row(row)})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/vendor-offers/<int:offer_id>', methods=['DELETE'])
+def api_delete_vendor_offer(offer_id: int):
+    try:
+        ensure_vendor_offer_tables(KASA_DB_PATH)
+        conn = sqlite3.connect(KASA_DB_PATH)
+        try:
+            cursor = conn.execute('DELETE FROM vendor_offers WHERE id = ?', (offer_id,))
+            if cursor.rowcount == 0:
+                conn.rollback()
+                return jsonify({'error': 'Vendor offer not found'}), 404
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/markers', methods=['GET'])
 def get_markers():
@@ -2678,6 +3288,27 @@ def stop_collection_runtime():
     return runtime.stop()
 
 
+def start_mdns_advertising(port: int):
+    """Start mDNS service advertising for the web dashboard."""
+    global mdns_advertiser
+
+    if mdns_advertiser is not None:
+        mdns_advertiser.stop()
+
+    mdns_advertiser = MdnsAdvertiser(port)
+    return mdns_advertiser.start()
+
+
+def stop_mdns_advertising():
+    """Stop any mDNS advertiser processes owned by this app."""
+    global mdns_advertiser
+
+    if mdns_advertiser is None:
+        return
+    mdns_advertiser.stop()
+    mdns_advertiser = None
+
+
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
         description='Run the HomeWizard dashboard, collector, or both.',
@@ -2705,6 +3336,11 @@ def parse_args(argv=None):
         default=30,
         help='How many MELCloud days to backfill on collector startup.',
     )
+    parser.add_argument(
+        '--no-mdns',
+        action='store_true',
+        help='Disable Bonjour/mDNS service advertising for the dashboard.',
+    )
     return parser.parse_args(argv)
 
 
@@ -2712,6 +3348,7 @@ def install_signal_handlers():
     def handle_shutdown(signum, _frame):
         signal_name = signal.Signals(signum).name
         print(f"\n🛑 Received {signal_name}, stopping HomeWizard monitor...")
+        stop_mdns_advertising()
         stop_collection_runtime()
         raise SystemExit(0)
 
@@ -2729,6 +3366,10 @@ def main(argv=None):
     print("🚀 Starting HomeWizard P1 Web Monitor...")
     if run_web:
         print(f"📊 Dashboard will be available at: http://localhost:{args.port}")
+        if args.no_mdns:
+            print("📡 mDNS advertising disabled (--no-mdns).")
+        else:
+            start_mdns_advertising(args.port)
     if run_collectors:
         start_collection_runtime(
             thread_daemon=True,
@@ -2755,6 +3396,7 @@ def main(argv=None):
     except KeyboardInterrupt:
         pass
     finally:
+        stop_mdns_advertising()
         stop_collection_runtime()
 
 

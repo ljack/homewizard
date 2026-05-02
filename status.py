@@ -13,6 +13,30 @@ from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 
+def load_dotenv(path: str = '.env'):
+    """Load simple KEY=value settings without overriding the process env."""
+    if not os.path.exists(path):
+        return
+
+    with open(path, encoding='utf-8') as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+
+            key, value = line.split('=', 1)
+            key = key.strip()
+            value = value.strip()
+            if not key or not key.replace('_', '').isalnum() or key[0].isdigit():
+                continue
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+                value = value[1:-1]
+
+            os.environ.setdefault(key, value)
+
+
+load_dotenv()
+
 DEFAULT_METER_URL = os.environ.get('P1_METER_URL', 'http://homewizard.local')
 DEFAULT_WEB_URL = os.environ.get('HOMEWIZARD_WEB_URL', 'http://localhost:5001')
 DEFAULT_DB_PATH = os.environ.get('HOMEWIZARD_DB_PATH', 'p1_data.db')

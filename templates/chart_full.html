@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HomeWizard P1 Power Chart</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232a5298'/%3E%3Cpath d='M12 42h40M12 42V16M18 34l9-9 8 7 12-15' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -27,6 +28,8 @@
             color: #fff;
             height: 100vh;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
         
         .header {
@@ -35,24 +38,41 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            flex: 0 0 auto;
             border-bottom: 2px solid #333;
+        }
+
+        .header-brand {
+            flex: 0 0 auto;
+            min-width: 250px;
         }
         
         .header h1 {
             font-size: 1.5rem;
             color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
         }
         
         .controls {
             display: flex;
             gap: 1rem;
             align-items: center;
+            justify-content: flex-end;
+            flex: 1 1 900px;
+            flex-wrap: wrap;
+            min-width: 0;
         }
         
         .time-selector {
             display: flex;
             gap: 0.5rem;
             align-items: center;
+            flex-wrap: wrap;
         }
         
         .time-selector label {
@@ -77,6 +97,7 @@
             font-size: 0.9rem;
             font-weight: 500;
             transition: background-color 0.3s;
+            white-space: nowrap;
         }
         
         .btn-primary {
@@ -107,7 +128,9 @@
         }
         
         .chart-container {
-            height: calc(100vh - 80px);
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
             position: relative;
             padding: 1rem;
         }
@@ -115,6 +138,82 @@
         #powerChart {
             background: rgba(255,255,255,0.05);
             border-radius: 8px;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            display: none;
+            pointer-events: none;
+            z-index: 30;
+            min-width: 280px;
+            max-width: min(420px, calc(100vw - 48px));
+            padding: 0.75rem 0.85rem;
+            border: 1px solid #3498db;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.88);
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            font-size: 0.88rem;
+            line-height: 1.25;
+        }
+
+        .chart-tooltip-title {
+            margin-bottom: 0.45rem;
+            font-weight: 700;
+            font-size: 0.95rem;
+            white-space: nowrap;
+        }
+
+        .chart-tooltip-row {
+            display: grid;
+            grid-template-columns: 14px minmax(0, 1fr) auto;
+            gap: 0.45rem;
+            align-items: baseline;
+            margin-top: 0.18rem;
+            margin-left: -0.35rem;
+            margin-right: -0.35rem;
+            padding: 0.08rem 0.35rem;
+            border-radius: 5px;
+        }
+
+        .chart-tooltip-row.hovered {
+            background: color-mix(in srgb, var(--tooltip-color, #fff) 22%, rgba(255,255,255,0.08));
+            box-shadow: inset 3px 0 0 var(--tooltip-color, #fff);
+        }
+
+        .chart-tooltip-swatch {
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--tooltip-color, #fff);
+            background: color-mix(in srgb, var(--tooltip-color, #fff) 35%, transparent);
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.25);
+        }
+
+        .chart-tooltip-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 650;
+        }
+
+        .chart-tooltip-value {
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            font-weight: 700;
+        }
+
+        .chart-tooltip-row.hovered .chart-tooltip-label,
+        .chart-tooltip-row.hovered .chart-tooltip-value {
+            font-weight: 850;
+            color: #fff;
+        }
+
+        .chart-tooltip-detail {
+            grid-column: 2 / 4;
+            margin-top: -0.08rem;
+            color: #cfd8dc;
+            font-size: 0.78rem;
         }
         
         .marker-modal {
@@ -179,9 +278,10 @@
         }
         
         .status {
+            display: inline-block;
             padding: 0.5rem 1rem;
             border-radius: 4px;
-            margin-left: 1rem;
+            margin-top: 0.4rem;
             font-size: 0.9rem;
         }
         
@@ -250,6 +350,39 @@
         .quick-periods {
             display: flex;
             gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 900px) {
+            body {
+                overflow-y: auto;
+            }
+
+            .header {
+                align-items: flex-start;
+            }
+
+            .header-brand {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .header h1 {
+                white-space: normal;
+            }
+
+            .controls {
+                justify-content: flex-start;
+                flex-basis: 100%;
+            }
+
+            .time-selector input {
+                width: min(100%, 240px);
+            }
+
+            .chart-container {
+                min-height: 70vh;
+            }
         }
         
         .quick-period {
@@ -354,7 +487,7 @@
 </head>
 <body>
     <header class="header">
-        <div>
+        <div class="header-brand">
             <h1><i class="fas fa-chart-line"></i> Power History Chart</h1>
             <span class="status" id="status">Connecting...</span>
         </div>
@@ -368,9 +501,9 @@
             </div>
             
             <div class="time-selector">
-                <label>From:</label>
+                <label for="startTime">From:</label>
                 <input type="datetime-local" id="startTime">
-                <label>To:</label>
+                <label for="endTime">To:</label>
                 <input type="datetime-local" id="endTime">
                 <button class="btn btn-primary" onclick="updateCustomRange()">
                     <i class="fas fa-search"></i> Load
@@ -391,6 +524,10 @@
 
             <button class="btn btn-secondary" onclick="addMarker()" id="addMarkerBtn">
                 <i class="fas fa-map-marker-alt"></i> Add Marker
+            </button>
+
+            <button class="btn btn-secondary" onclick="window.location.href='/vendors'">
+                <i class="fas fa-solar-panel"></i> Vendors
             </button>
 
             <button class="btn btn-secondary" onclick="goBack()">
@@ -457,17 +594,20 @@
         let currentTimeRange = { hours: 24 };
         let viewWindowMs = null;       // { start, end } in ms – active when panning
         let panFetchTimer = null;      // debounce for refetching data after pan
-        let showSpotPrice = localStorage.getItem('showSpotPrice') === '1';
+        let showSpotPrice = localStorage.getItem('showSpotPrice') !== '0';
         let currentSpotSeries = [];
         const SPOT_PRICE_LABEL = 'Spot price (c/kWh)';
-        let showPlugs = localStorage.getItem('showPlugs') === '1';
+        let showPlugs = localStorage.getItem('showPlugs') !== '0';
         let currentBreakdown = null;
         let showIlpPower = localStorage.getItem('showIlpPower') !== '0';
         let currentIlpPowerSeries = [];
+        let tooltipCursorMs = null;
+        let hoveredDatasetIndex = null;
         const PLUG_STACK_ID = 'consumption';
         const UNACCOUNTED_LABEL = 'Unaccounted';
         const ILP_DATASET_PREFIX = 'ILP hourly avg:';
         const INVOICE_ESTIMATE_LABEL = 'Invoice estimate (W)';
+        const TOOLTIP_CARRIER_LABEL = '__tooltip_rows__';
         const RANGE_SELECTION_MIN_PIXELS = 12;
         // Stable palette for plug stacks
         const PLUG_COLORS = [
@@ -492,7 +632,53 @@
                 drawSelectedRangeOverlay(chart);
             }
         };
-        Chart.register(rangeSelectionPlugin);
+        const hoverLegendHighlightPlugin = {
+            id: 'hoverLegendHighlight',
+            afterDraw(chart) {
+                if (hoveredDatasetIndex == null || !chart.legend) return;
+                const legend = chart.legend;
+                const itemIndex = (legend.legendItems || []).findIndex(item => item.datasetIndex === hoveredDatasetIndex);
+                const hitBox = itemIndex >= 0 ? (legend.legendHitBoxes || [])[itemIndex] : null;
+                if (!hitBox) return;
+
+                const ds = chart.data.datasets[hoveredDatasetIndex] || {};
+                const color = ds.borderColor || ds.backgroundColor || '#fff';
+                const ctx = chart.ctx;
+                const padX = 7;
+                const padY = 4;
+                const x = hitBox.left - padX;
+                const y = hitBox.top - padY;
+                const width = hitBox.width + padX * 2;
+                const height = hitBox.height + padY * 2;
+
+                ctx.save();
+                ctx.globalCompositeOperation = 'destination-over';
+                ctx.fillStyle = colorToRgba(color, 0.2);
+                drawRoundedRect(ctx, x, y, width, height, 7);
+                ctx.fill();
+                ctx.restore();
+
+                ctx.save();
+                ctx.strokeStyle = colorToRgba(color, 0.85);
+                ctx.lineWidth = 1.5;
+                drawRoundedRect(ctx, x, y, width, height, 7);
+                ctx.stroke();
+                ctx.restore();
+            }
+        };
+        Chart.register(rangeSelectionPlugin, hoverLegendHighlightPlugin);
+
+        if (Chart.Tooltip && Chart.Tooltip.positioners) {
+            Chart.Tooltip.positioners.cursorOffset = function(_elements, eventPosition) {
+                const verticalOffset = 14;
+                const width = this.chart && this.chart.width ? this.chart.width : Infinity;
+                const height = this.chart && this.chart.height ? this.chart.height : Infinity;
+                return {
+                    x: Math.max(0, Math.min(eventPosition.x, width)),
+                    y: Math.min(eventPosition.y + verticalOffset, height - verticalOffset)
+                };
+            };
+        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -526,6 +712,333 @@
             if (ds.label === UNACCOUNTED_LABEL) return `Unaccounted: ${rounded}W`;
             if (ds.ilpSeries) return `${ds.label.replace(ILP_DATASET_PREFIX + ' ', '')}: ${rounded}W avg`;
             return `${ds.label}: ${rounded}W`;
+        }
+
+        function datasetTooltipPriority(ds) {
+            if (!ds) return 100;
+            if (ds.tooltipCarrier) return 98;
+            if (ds.label === 'Markers') return 99;
+            if (ds.mainPowerSeries || ds.label === 'Total Power (W)') return 0;
+            if (ds.invoiceEstimateSeries) return 1;
+            if (ds.label === SPOT_PRICE_LABEL) return 2;
+            if (ds.ilpSeries) return 3;
+            if (ds.stack === PLUG_STACK_ID && ds.label !== UNACCOUNTED_LABEL) return 4;
+            if (ds.label === UNACCOUNTED_LABEL) return 5;
+            return 20;
+        }
+
+        function pointTimeMs(point) {
+            if (!point || point.x == null) return NaN;
+            const value = point.x instanceof Date ? point.x.getTime() : new Date(point.x).getTime();
+            return Number.isFinite(value) ? value : NaN;
+        }
+
+        function findSampleAtTime(points, targetMs, stepped) {
+            if (!Array.isArray(points) || !points.length || !Number.isFinite(targetMs)) return null;
+            if (stepped) {
+                let best = null;
+                for (const point of points) {
+                    const t = pointTimeMs(point);
+                    if (!Number.isFinite(t)) continue;
+                    if (t <= targetMs) best = point;
+                    if (t > targetMs) break;
+                }
+                return best && best.y != null ? best : null;
+            }
+
+            let best = null;
+            let bestDiff = Infinity;
+            for (const point of points) {
+                if (!point || point.y == null) continue;
+                const t = pointTimeMs(point);
+                if (!Number.isFinite(t)) continue;
+                const diff = Math.abs(t - targetMs);
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    best = point;
+                }
+            }
+
+            const xScale = powerChart && powerChart.scales && powerChart.scales.x;
+            const maxMs = xScale ? Math.abs(xScale.getValueForPixel(xScale.left + 8) - xScale.getValueForPixel(xScale.left)) : 5 * 60 * 1000;
+            return best && bestDiff <= Math.max(maxMs, 5 * 60 * 1000) ? best : null;
+        }
+
+        function completeTooltipRows() {
+            if (!powerChart || !Number.isFinite(tooltipCursorMs)) return [];
+            return powerChart.data.datasets
+                .map((ds, datasetIndex) => {
+                    if (!ds || ds.hidden || ds.tooltipCarrier || ds.label === 'Markers') return null;
+                    const sample = findSampleAtTime(ds.data, tooltipCursorMs, !!ds.stepped);
+                    if (!sample || sample.y == null) return null;
+                    return {
+                        dataset: ds,
+                        datasetIndex,
+                        sample,
+                        value: Number(sample.y),
+                        priority: datasetTooltipPriority(ds)
+                    };
+                })
+                .filter(Boolean)
+                .sort((a, b) => a.priority - b.priority || a.datasetIndex - b.datasetIndex);
+        }
+
+        function tooltipLabelForRow(row) {
+            const ds = row.dataset || {};
+            if (ds.label === SPOT_PRICE_LABEL) {
+                return `Spot: ${row.value.toFixed(2)} c/kWh`;
+            }
+            return formatPowerTooltipLabel(ds, row.value);
+        }
+
+        function tooltipPartsForRow(row) {
+            const ds = row.dataset || {};
+            if (ds.label === SPOT_PRICE_LABEL) {
+                return { label: 'Spot', value: `${row.value.toFixed(2)} c/kWh` };
+            }
+            const value = Math.round(row.value).toLocaleString();
+            if (ds.label === 'Total Power (W)') return { label: 'Whole house (P1)', value: `${value}W` };
+            if (ds.invoiceEstimateSeries) return { label: 'Invoice estimate', value: `${value}W` };
+            if (ds.label === UNACCOUNTED_LABEL) return { label: 'Unaccounted', value: `${value}W` };
+            if (ds.ilpSeries) {
+                return { label: ds.label.replace(ILP_DATASET_PREFIX + ' ', ''), value: `${value}W avg` };
+            }
+            return { label: ds.label || 'Series', value: `${value}W` };
+        }
+
+        function tooltipColorForRow(row) {
+            const ds = row.dataset || {};
+            return ds.borderColor || ds.backgroundColor || '#fff';
+        }
+
+        function colorToRgba(color, alpha) {
+            if (!color) return `rgba(255, 255, 255, ${alpha})`;
+            const hexMatch = String(color).trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+            if (hexMatch) {
+                let h = hexMatch[1];
+                if (h.length === 3) h = h.split('').map(ch => ch + ch).join('');
+                const r = parseInt(h.slice(0, 2), 16);
+                const g = parseInt(h.slice(2, 4), 16);
+                const b = parseInt(h.slice(4, 6), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+
+            const rgbMatch = String(color).match(/rgba?\(([^)]+)\)/i);
+            if (rgbMatch) {
+                const parts = rgbMatch[1].split(',').map(part => Number.parseFloat(part.trim()));
+                if (parts.length >= 3 && parts.slice(0, 3).every(Number.isFinite)) {
+                    return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
+                }
+            }
+
+            return color;
+        }
+
+        function drawRoundedRect(ctx, x, y, width, height, radius) {
+            const r = Math.min(radius, width / 2, height / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + width - r, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+            ctx.lineTo(x + width, y + height - r);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+            ctx.lineTo(x + r, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        function captureHoverBaseStyle(ds) {
+            if (!ds || ds.tooltipCarrier || ds.label === 'Markers') return;
+            if (!Object.prototype.hasOwnProperty.call(ds, '_hoverBaseBorderWidth')) {
+                ds._hoverBaseBorderWidth = ds.borderWidth;
+            }
+            if (!Object.prototype.hasOwnProperty.call(ds, '_hoverBasePointRadius')) {
+                ds._hoverBasePointRadius = ds.pointRadius;
+            }
+            if (!Object.prototype.hasOwnProperty.call(ds, '_hoverBasePointHoverRadius')) {
+                ds._hoverBasePointHoverRadius = ds.pointHoverRadius;
+            }
+        }
+
+        function restoreHoverBaseStyle(ds) {
+            if (!ds) return;
+            if (Object.prototype.hasOwnProperty.call(ds, '_hoverBaseBorderWidth')) {
+                ds.borderWidth = ds._hoverBaseBorderWidth;
+            }
+            if (Object.prototype.hasOwnProperty.call(ds, '_hoverBasePointRadius')) {
+                ds.pointRadius = ds._hoverBasePointRadius;
+            }
+            if (Object.prototype.hasOwnProperty.call(ds, '_hoverBasePointHoverRadius')) {
+                ds.pointHoverRadius = ds._hoverBasePointHoverRadius;
+            }
+        }
+
+        function bumpNumericStyle(value, fallback, bump, minimum) {
+            if (typeof value === 'number') return Math.max(value + bump, minimum);
+            return Math.max(fallback + bump, minimum);
+        }
+
+        function applyDatasetHoverStyles() {
+            if (!powerChart) return;
+            powerChart.data.datasets.forEach((ds, datasetIndex) => {
+                if (!ds || ds.tooltipCarrier || ds.label === 'Markers') return;
+                captureHoverBaseStyle(ds);
+                restoreHoverBaseStyle(ds);
+                if (datasetIndex !== hoveredDatasetIndex) return;
+
+                ds.borderWidth = bumpNumericStyle(ds._hoverBaseBorderWidth, 2, 2.4, 3.5);
+                ds.pointRadius = bumpNumericStyle(ds._hoverBasePointRadius, 0, 1.5, 2);
+                ds.pointHoverRadius = bumpNumericStyle(ds._hoverBasePointHoverRadius, 4, 2, 6);
+            });
+        }
+
+        function setHoveredDatasetIndex(datasetIndex) {
+            const nextIndex = Number.isInteger(datasetIndex) ? datasetIndex : null;
+            if (hoveredDatasetIndex === nextIndex) return false;
+            hoveredDatasetIndex = nextIndex;
+            applyDatasetHoverStyles();
+            return true;
+        }
+
+        function findHoveredDatasetIndex(rows, canvasY) {
+            if (!powerChart || !rows.length || !Number.isFinite(canvasY)) return null;
+            const thresholdPx = 26;
+            let best = null;
+
+            rows.forEach(row => {
+                const ds = row.dataset || {};
+                const scaleId = ds.yAxisID || 'y';
+                const yScale = powerChart.scales && powerChart.scales[scaleId];
+                if (!yScale || !Number.isFinite(row.value)) return;
+
+                const y = yScale.getPixelForValue(row.value);
+                if (!Number.isFinite(y)) return;
+                const distance = Math.abs(canvasY - y);
+                const sameVisualBand = best && Math.abs(distance - best.distance) <= 8;
+                if (!best || distance < best.distance - 8 || (sameVisualBand && row.priority < best.priority)) {
+                    best = { datasetIndex: row.datasetIndex, distance, priority: row.priority };
+                }
+            });
+
+            return best && best.distance <= thresholdPx ? best.datasetIndex : null;
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function tooltipAfterLabelForRow(row) {
+            const ds = row.dataset || {};
+            const sample = row.sample || {};
+            if (ds.invoiceEstimateSeries && sample.invoiceNumber) {
+                const seller = sample.sellerName ? ` (${sample.sellerName})` : '';
+                return `Estimated from invoice ${sample.invoiceNumber}${seller}`;
+            }
+            if (ds.ilpSeries && sample.coveragePercent != null) {
+                const suffix = sample.partial ? ' (partial hour)' : '';
+                return `Coverage: ${Number(sample.coveragePercent).toFixed(1)}%${suffix}`;
+            }
+            return '';
+        }
+
+        function getTooltipCarrierDatasetIndex() {
+            return powerChart
+                ? powerChart.data.datasets.findIndex(ds => ds && ds.tooltipCarrier)
+                : -1;
+        }
+
+        function syncTooltipCarrier(cursorMs) {
+            if (!powerChart || !Number.isFinite(cursorMs)) return;
+            tooltipCursorMs = cursorMs;
+            const rows = completeTooltipRows();
+            const carrierIndex = getTooltipCarrierDatasetIndex();
+            if (carrierIndex < 0) return;
+            const carrier = powerChart.data.datasets[carrierIndex];
+            const fallbackY = rows.length ? rows[0].value : 0;
+            carrier.data = rows.map((_row, index) => ({
+                x: new Date(cursorMs),
+                y: fallbackY,
+                tooltipRowIndex: index
+            }));
+        }
+
+        function getChartTooltipElement() {
+            const container = document.querySelector('.chart-container');
+            if (!container) return null;
+            let el = container.querySelector('.chart-tooltip');
+            if (!el) {
+                el = document.createElement('div');
+                el.className = 'chart-tooltip';
+                container.appendChild(el);
+            }
+            return el;
+        }
+
+        function hideCompleteTooltip() {
+            const el = getChartTooltipElement();
+            if (el) {
+                el.style.display = 'none';
+                el.querySelectorAll('.chart-tooltip-row.hovered').forEach(row => {
+                    row.classList.remove('hovered');
+                });
+            }
+            if (!powerChart) return;
+            setHoveredDatasetIndex(null);
+            const carrierIndex = getTooltipCarrierDatasetIndex();
+            if (carrierIndex >= 0) powerChart.data.datasets[carrierIndex].data = [];
+            powerChart.tooltip.setActiveElements([], { x: 0, y: 0 });
+            powerChart.draw();
+        }
+
+        function renderCompleteTooltip(canvasX, canvasY) {
+            const el = getChartTooltipElement();
+            if (!el || !powerChart || !Number.isFinite(tooltipCursorMs)) return;
+            const rows = completeTooltipRows();
+            if (!rows.length) {
+                hideCompleteTooltip();
+                return;
+            }
+
+            const title = formatChartTimestamp(new Date(tooltipCursorMs));
+            const rowHtml = rows.map(row => {
+                const parts = tooltipPartsForRow(row);
+                const detail = tooltipAfterLabelForRow(row);
+                const detailLines = Array.isArray(detail) ? detail : (detail ? [detail] : []);
+                const color = tooltipColorForRow(row);
+                const rowClass = row.datasetIndex === hoveredDatasetIndex
+                    ? 'chart-tooltip-row hovered'
+                    : 'chart-tooltip-row';
+                return `
+                    <div class="${rowClass}" style="--tooltip-color:${escapeHtml(color)}">
+                        <span class="chart-tooltip-swatch"></span>
+                        <span class="chart-tooltip-label">${escapeHtml(parts.label)}</span>
+                        <span class="chart-tooltip-value">${escapeHtml(parts.value)}</span>
+                        ${detailLines.map(line => `<span class="chart-tooltip-detail">${escapeHtml(line)}</span>`).join('')}
+                    </div>
+                `;
+            }).join('');
+
+            el.innerHTML = `<div class="chart-tooltip-title">${escapeHtml(title)}</div>${rowHtml}`;
+            el.style.display = 'block';
+
+            const container = document.querySelector('.chart-container');
+            const pad = 12;
+            const offset = 14;
+            const maxLeft = Math.max(pad, container.clientWidth - el.offsetWidth - pad);
+            const maxTop = Math.max(pad, container.clientHeight - el.offsetHeight - pad);
+            let left = canvasX + offset;
+            let top = canvasY + offset;
+            if (left > maxLeft) left = canvasX - el.offsetWidth - offset;
+            if (top > maxTop) top = canvasY - el.offsetHeight - offset;
+            el.style.left = `${Math.max(pad, Math.min(left, maxLeft))}px`;
+            el.style.top = `${Math.max(pad, Math.min(top, maxTop))}px`;
         }
 
         function getChartDataset(label) {
@@ -900,6 +1413,16 @@
                         pointRadius: 0,
                         pointHoverRadius: 5,
                         spanGaps: false
+                    }, {
+                        label: TOOLTIP_CARRIER_LABEL,
+                        tooltipCarrier: true,
+                        data: [],
+                        borderColor: 'rgba(0,0,0,0)',
+                        backgroundColor: 'rgba(0,0,0,0)',
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        borderWidth: 0,
+                        showLine: false
                     }]
                 },
                 options: {
@@ -957,17 +1480,38 @@
                     plugins: {
                         legend: {
                             labels: {
-                                color: '#ccc'
+                                color: '#ccc',
+                                generateLabels: function(chart) {
+                                    const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    return labels.map(item => {
+                                        if (item.datasetIndex !== hoveredDatasetIndex) return item;
+                                        return {
+                                            ...item,
+                                            fontColor: '#fff',
+                                            lineWidth: Math.max(item.lineWidth || 2, 4),
+                                            strokeStyle: item.strokeStyle || item.fillStyle
+                                        };
+                                    });
+                                },
+                                filter: function(item, chartData) {
+                                    const ds = chartData.datasets[item.datasetIndex];
+                                    return !(ds && ds.tooltipCarrier);
+                                }
                             }
                         },
                         tooltip: {
+                            enabled: false,
                             mode: 'index',
                             intersect: false,
+                            position: 'cursorOffset',
                             backgroundColor: 'rgba(0,0,0,0.8)',
                             titleColor: '#fff',
                             bodyColor: '#fff',
                             borderColor: '#3498db',
                             borderWidth: 1,
+                            filter: function(_item, index) {
+                                return index === 0;
+                            },
                             callbacks: {
                                 title: function(items) {
                                     if (!items || !items.length) return '';
@@ -975,10 +1519,34 @@
                                     if (markerItem) {
                                         return formatChartTimestamp(markerItem.raw.marker.datetime || markerItem.raw.x);
                                     }
-                                    const first = items[0];
-                                    return formatChartTimestamp((first.raw && first.raw.x) || first.parsed.x);
+                                    const targetMs = Number.isFinite(tooltipCursorMs)
+                                        ? tooltipCursorMs
+                                        : ((items[0].raw && pointTimeMs(items[0].raw)) || items[0].parsed.x);
+                                    return formatChartTimestamp(new Date(targetMs));
+                                },
+                                beforeBody: function() {
+                                    const rows = completeTooltipRows();
+                                    if (!rows.length) return [];
+                                    return rows.flatMap(row => {
+                                        const lines = [tooltipLabelForRow(row)];
+                                        const detail = tooltipAfterLabelForRow(row);
+                                        if (Array.isArray(detail)) {
+                                            lines.push(...detail);
+                                        } else if (detail) {
+                                            lines.push(detail);
+                                        }
+                                        return lines;
+                                    });
                                 },
                                 label: function(context) {
+                                    const rows = completeTooltipRows();
+                                    if (rows.length) return [];
+                                    const rowIndex = context.raw && context.raw.tooltipRowIndex != null
+                                        ? context.raw.tooltipRowIndex
+                                        : context.dataIndex;
+                                    const row = rows[rowIndex];
+                                    if (row) return tooltipLabelForRow(row);
+                                    if (context.dataset && context.dataset.tooltipCarrier) return '';
                                     const label = context.dataset && context.dataset.label;
                                     const ds = context.dataset || {};
                                     if (label === 'Markers' && context.raw && context.raw.marker) {
@@ -990,6 +1558,14 @@
                                     return formatPowerTooltipLabel(ds, context.parsed.y);
                                 },
                                 afterLabel: function(context) {
+                                    const rows = completeTooltipRows();
+                                    if (rows.length) return [];
+                                    const rowIndex = context.raw && context.raw.tooltipRowIndex != null
+                                        ? context.raw.tooltipRowIndex
+                                        : context.dataIndex;
+                                    const row = rows[rowIndex];
+                                    if (row) return tooltipAfterLabelForRow(row);
+                                    if (context.dataset && context.dataset.tooltipCarrier) return '';
                                     const ds = context.dataset || {};
                                     if (ds.label === 'Markers' && context.raw && context.raw.marker) {
                                         const marker = context.raw.marker;
@@ -1009,6 +1585,12 @@
                         }
                     },
                     onHover: (event, activeElements) => {
+                        const native = event && event.native;
+                        if (native && (native.type === 'mouseout' || native.type === 'mouseleave')) {
+                            hideCompleteTooltip();
+                        } else if (native && Number.isFinite(native.offsetX) && Number.isFinite(native.offsetY)) {
+                            updateCompleteTooltipAt(native.offsetX, native.offsetY);
+                        }
                         ctx.canvas.style.cursor = activeElements.length > 0 ? 'pointer' : 'crosshair';
                     },
                     onClick: (event) => {
@@ -1031,6 +1613,7 @@
             });
             attachPanGesture(ctx.canvas);
             attachRangeSelectionGesture(ctx.canvas);
+            attachCompleteTooltipGesture(ctx.canvas);
         }
         
         // --- Two-finger horizontal pan -----------------------------------
@@ -1160,6 +1743,62 @@
             }, { passive: false });
             canvas.addEventListener('touchend', () => { pinchState = null; });
             canvas.addEventListener('touchcancel', () => { pinchState = null; });
+        }
+
+        function updateCompleteTooltipAt(x, y) {
+            if (!powerChart || selectedRange.dragActive) return;
+            const area = powerChart.chartArea;
+            const xScale = powerChart.scales && powerChart.scales.x;
+            if (!area || !xScale) return;
+
+            const edgeTolerance = 2;
+            if (
+                x < area.left - edgeTolerance ||
+                x > area.right + edgeTolerance ||
+                y < area.top - edgeTolerance ||
+                y > area.bottom + edgeTolerance
+            ) {
+                hideCompleteTooltip();
+                return;
+            }
+
+            const clampedX = Math.max(area.left, Math.min(area.right, x));
+            const clampedY = Math.max(area.top, Math.min(area.bottom, y));
+            syncTooltipCarrier(xScale.getValueForPixel(clampedX));
+            const rows = completeTooltipRows();
+            setHoveredDatasetIndex(findHoveredDatasetIndex(rows, clampedY));
+            powerChart.update('none');
+            if (!rows.length) {
+                hideCompleteTooltip();
+                return;
+            }
+
+            powerChart.draw();
+            renderCompleteTooltip(clampedX, clampedY);
+        }
+
+        function attachCompleteTooltipGesture(canvas) {
+            canvas.addEventListener('mousemove', (event) => {
+                const rect = canvas.getBoundingClientRect();
+                updateCompleteTooltipAt(event.clientX - rect.left, event.clientY - rect.top);
+            });
+
+            const clearHover = () => {
+                hideCompleteTooltip();
+            };
+            canvas.addEventListener('mouseleave', clearHover);
+            canvas.addEventListener('mouseout', clearHover);
+            window.addEventListener('mousemove', (event) => {
+                const rect = canvas.getBoundingClientRect();
+                if (
+                    event.clientX < rect.left ||
+                    event.clientX > rect.right ||
+                    event.clientY < rect.top ||
+                    event.clientY > rect.bottom
+                ) {
+                    hideCompleteTooltip();
+                }
+            }, { passive: true });
         }
         
         function resetPanState() {

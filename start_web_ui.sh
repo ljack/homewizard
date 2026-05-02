@@ -2,6 +2,8 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
+source scripts/load_env.sh
+load_project_env .env
 source p1_env/bin/activate
 
 PORT="${PORT:-5001}"

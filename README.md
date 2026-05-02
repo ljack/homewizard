@@ -16,6 +16,12 @@ For preserving appliance identities when Kasa plugs are moved, see
 ```
 Then open: **http://localhost:5001**
 
+On macOS, the dashboard also advertises itself with Bonjour/mDNS as
+`HomeWizard P1` on `_http._tcp.local` and `_homewizard-p1._tcp.local` when
+`dns-sd` is available. Other devices can usually open it directly at
+`http://<mac-hostname>.local:5001`, for example `http://sysi6.local:5001` on
+the current Mac.
+
 ### Always-On Collector (Recommended For A Server)
 ```bash
 ./start_data_collector.sh
@@ -45,7 +51,24 @@ If you want data gathering to survive browser closes, reboots, or app crashes, r
 python3 web_monitor.py                 # dashboard + collectors
 python3 web_monitor.py --collector-only
 python3 web_monitor.py --web-only
+python3 web_monitor.py --no-mdns       # dashboard without Bonjour advertising
 ```
+
+### Local Discovery
+
+Dashboard mode advertises a Bonjour/mDNS service by default when a local
+advertiser is available. On macOS this uses the built-in `dns-sd` command, so
+there is no extra dependency. You can customize or disable it in `.env`:
+
+```bash
+MDNS_ENABLED=1
+MDNS_SERVICE_NAME=HomeWizard P1
+MDNS_SERVICE_TYPES=_http._tcp,_homewizard-p1._tcp
+```
+
+This is service discovery, not a DNS hostname alias. It helps apps and Bonjour
+browsers find the dashboard. A literal name like `homewizard.local` requires a
+separate host alias, hostname change, or Avahi configuration on the server.
 
 ### systemd Example
 
@@ -78,6 +101,19 @@ Health checks:
 ./p1_env/bin/python status.py
 curl http://localhost:5001/api/monitoring/status
 ```
+
+### macOS launchd Example
+
+For local Mac use, install the LaunchAgent template:
+
+```bash
+cp deploy/launchd/fi.local.homewizard.web-monitor.plist ~/Library/LaunchAgents/
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/fi.local.homewizard.web-monitor.plist
+launchctl enable "gui/$(id -u)/fi.local.homewizard.web-monitor"
+launchctl kickstart -k "gui/$(id -u)/fi.local.homewizard.web-monitor"
+```
+
+The job uses `KeepAlive` and `RunAtLoad`, so macOS restarts the dashboard plus embedded collectors after failures and starts it again on login. Runtime logs are written to `web_monitor_launchd.log` and `web_monitor_launchd.err.log`.
 
 ## 🜐 Web Dashboard Features
 
@@ -171,6 +207,7 @@ CSV fields:
 - `run_monitor.sh` / `run_analyze.sh` — CLI convenience wrappers
 
 *Deployment*
+- `deploy/launchd/fi.local.homewizard.web-monitor.plist` — macOS LaunchAgent for restart-on-failure local runs
 - `deploy/systemd/homewizard-collector.service` — systemd unit for always-on collection
 - `deploy/systemd/homewizard-dashboard.service` — systemd unit for dashboard-only mode
 

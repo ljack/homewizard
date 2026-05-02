@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar & Battery Vendor Offers</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #223142;
+            background:
+                radial-gradient(circle at 12% 8%, rgba(255, 188, 66, 0.24), transparent 30%),
+                radial-gradient(circle at 92% 12%, rgba(25, 130, 196, 0.22), transparent 32%),
+                linear-gradient(135deg, #f6f8fb 0%, #dfe9f3 100%);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.2rem 1.6rem;
+            background: rgba(255, 255, 255, 0.92);
+            border-bottom: 1px solid rgba(30, 60, 114, 0.12);
+            box-shadow: 0 12px 32px rgba(30, 60, 114, 0.08);
+        }
+
+        .header h1 {
+            color: #16345f;
+            font-size: 1.45rem;
+        }
+
+        .header p {
+            margin-top: 0.25rem;
+            color: #5d6f83;
+            font-size: 0.9rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            border: 0;
+            border-radius: 8px;
+            padding: 0.62rem 0.9rem;
+            color: #fff;
+            background: #2a5298;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(42, 82, 152, 0.18);
+        }
+
+        .btn.secondary {
+            background: #6c7a89;
+        }
+
+        .btn.danger {
+            background: #c0392b;
+        }
+
+        .btn.ghost {
+            background: #eef3f8;
+            color: #2a5298;
+            border: 1px solid #cad8e6;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 320px minmax(0, 1fr);
+            gap: 1.1rem;
+            padding: 1.2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(42, 82, 152, 0.12);
+            border-radius: 18px;
+            box-shadow: 0 16px 42px rgba(30, 60, 114, 0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            padding: 1rem 1.1rem;
+            border-bottom: 1px solid #e4edf5;
+            background: linear-gradient(135deg, #ffffff 0%, #f4f8fc 100%);
+        }
+
+        .panel-header h2 {
+            color: #16345f;
+            font-size: 1rem;
+        }
+
+        .sidebar {
+            align-self: start;
+            position: sticky;
+            top: 1rem;
+            max-height: calc(100vh - 2rem);
+            overflow: auto;
+        }
+
+        .vendor-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            padding: 0.8rem;
+        }
+
+        .vendor-card {
+            width: 100%;
+            border: 1px solid #dde8f2;
+            border-radius: 12px;
+            padding: 0.75rem;
+            text-align: left;
+            background: #fff;
+            color: #223142;
+            cursor: pointer;
+        }
+
+        .vendor-card.active {
+            border-color: #2a5298;
+            box-shadow: inset 4px 0 0 #2a5298;
+            background: #f3f7fd;
+        }
+
+        .vendor-name {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            color: #16345f;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+        }
+
+        .vendor-meta {
+            color: #647588;
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+
+        .score-pill {
+            border-radius: 999px;
+            padding: 0.15rem 0.45rem;
+            background: #e7f2ff;
+            color: #1e5b99;
+            font-size: 0.72rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .empty {
+            padding: 1rem;
+            color: #6f7f8f;
+            font-style: italic;
+        }
+
+        .content {
+            display: grid;
+            gap: 1.1rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.8rem;
+            padding: 1rem 1.1rem;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+
+        .field label {
+            color: #3c5065;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            border: 1px solid #cad8e6;
+            border-radius: 9px;
+            padding: 0.65rem 0.72rem;
+            background: #fbfdff;
+            color: #1f2f3f;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        .field-help {
+            color: #75879a;
+            font-size: 0.76rem;
+            line-height: 1.35;
+        }
+
+        .section {
+            border-top: 1px solid #e4edf5;
+            padding: 1rem 1.1rem;
+        }
+
+        .section h3 {
+            color: #16345f;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        .question-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.8rem;
+        }
+
+        .scores {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.7rem;
+            padding: 1rem 1.1rem;
+            border-top: 1px solid #e4edf5;
+            background: #f8fbfe;
+        }
+
+        .save-bar {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.85rem 1.1rem;
+            background: rgba(255, 255, 255, 0.96);
+            border-top: 1px solid #dbe7f1;
+            backdrop-filter: blur(8px);
+        }
+
+        .status {
+            color: #607286;
+            font-size: 0.85rem;
+        }
+
+        .status.error {
+            color: #c0392b;
+            font-weight: 700;
+        }
+
+        .status.success {
+            color: #1d7f49;
+            font-weight: 700;
+        }
+
+        .compare-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+        }
+
+        th,
+        td {
+            border-bottom: 1px solid #e4edf5;
+            padding: 0.72rem;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #f3f7fd;
+            color: #16345f;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        td.metric {
+            color: #4d6074;
+            font-weight: 800;
+            min-width: 190px;
+        }
+
+        .compact-value {
+            max-width: 320px;
+            white-space: pre-wrap;
+            color: #26394c;
+        }
+
+        .checklist-note {
+            padding: 0.95rem 1.1rem;
+            color: #53677b;
+            line-height: 1.5;
+            background: #fffaf0;
+            border-bottom: 1px solid #f1dfb8;
+        }
+
+        @media (max-width: 980px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+                max-height: none;
+            }
+
+            .form-grid,
+            .question-grid,
+            .scores {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div>
+            <h1><i class="fas fa-solar-panel"></i> Solar & Battery Vendor Offers</h1>
+            <p>Interview checklist and side-by-side comparison for Kotiakku / solar / reserve-market offers.</p>
+        </div>
+        <div class="header-actions">
+            <a class="btn ghost" href="/"><i class="fas fa-home"></i> Dashboard</a>
+            <a class="btn ghost" href="/chart"><i class="fas fa-chart-line"></i> Chart</a>
+            <button class="btn" onclick="createNewOffer()"><i class="fas fa-plus"></i> New Vendor</button>
+        </div>
+    </header>
+
+    <main class="layout">
+        <aside class="panel sidebar">
+            <div class="panel-header">
+                <h2>Vendors</h2>
+                <button class="btn ghost" onclick="loadOffers()" title="Refresh"><i class="fas fa-sync"></i></button>
+            </div>
+            <div id="vendorList" class="vendor-list">
+                <div class="empty">Loading vendors...</div>
+            </div>
+        </aside>
+
+        <section class="content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Offer Notes</h2>
+                    <div class="header-actions">
+                        <button class="btn secondary" onclick="duplicateOffer()" id="duplicateBtn"><i class="fas fa-copy"></i> Duplicate</button>
+                        <button class="btn danger" onclick="deleteCurrentOffer()" id="deleteBtn"><i class="fas fa-trash"></i> Delete</button>
+                    </div>
+                </div>
+                <div class="checklist-note">
+                    Baseline for our case: current house is about 30 MWh/year, planned joined buildings may move the site toward 40 MWh/year. Ask vendors to quote against that future state, and to clearly separate guaranteed values from optimistic estimates.
+                </div>
+                <form id="offerForm" onsubmit="saveOffer(event)">
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="vendorName">Vendor name</label>
+                            <input id="vendorName" required placeholder="Elisa, Seron, Kotiakku Oy...">
+                        </div>
+                        <div class="field">
+                            <label for="status">Status</label>
+                            <select id="status">
+                                <option>Researching</option>
+                                <option>Contacted</option>
+                                <option>Interview booked</option>
+                                <option>Offer received</option>
+                                <option>Shortlisted</option>
+                                <option>Rejected</option>
+                                <option>Selected</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="interviewDate">Interview / quote date</label>
+                            <input id="interviewDate" type="date">
+                        </div>
+                        <div class="field">
+                            <label for="contactName">Contact name</label>
+                            <input id="contactName">
+                        </div>
+                        <div class="field">
+                            <label for="contactEmail">Contact email</label>
+                            <input id="contactEmail" type="email">
+                        </div>
+                        <div class="field">
+                            <label for="contactPhone">Contact phone</label>
+                            <input id="contactPhone">
+                        </div>
+                        <div class="field full">
+                            <label for="website">Website / offer link</label>
+                            <input id="website" placeholder="https://...">
+                        </div>
+                        <div class="field full">
+                            <label for="summary">Short summary</label>
+                            <textarea id="summary" placeholder="One-paragraph take: strongest point, biggest risk, and what to verify next."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="scores">
+                        <div class="field">
+                            <label for="scoreTechnical">Technical fit</label>
+                            <select id="scoreTechnical">
+                                <option value="">Not scored</option>
+                                <option value="1">1 weak</option>
+                                <option value="2">2</option>
+                                <option value="3">3 ok</option>
+                                <option value="4">4</option>
+                                <option value="5">5 strong</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="scoreFinancial">Financial fit</label>
+                            <select id="scoreFinancial">
+                                <option value="">Not scored</option>
+                                <option value="1">1 weak</option>
+                                <option value="2">2</option>
+                                <option value="3">3 ok</option>
+                                <option value="4">4</option>
+                                <option value="5">5 strong</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="scoreTrust">Trust / clarity</label>
+                            <select id="scoreTrust">
+                                <option value="">Not scored</option>
+                                <option value="1">1 weak</option>
+                                <option value="2">2</option>
+                                <option value="3">3 ok</option>
+                                <option value="4">4</option>
+                                <option value="5">5 strong</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="scoreSupport">Support fit</label>
+                            <select id="scoreSupport">
+                                <option value="">Not scored</option>
+                                <option value="1">1 weak</option>
+                                <option value="2">2</option>
+                                <option value="3">3 ok</option>
+                                <option value="4">4</option>
+                                <option value="5">5 strong</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Total score</label>
+                            <input id="scoreTotal" readonly>
+                        </div>
+                    </div>
+
+                    <div id="questionnaire"></div>
+
+                    <div class="save-bar">
+                        <div class="status" id="saveStatus">No changes saved yet.</div>
+                        <div class="header-actions">
+                            <button class="btn secondary" type="button" onclick="resetFormToCurrent()">Reset</button>
+                            <button class="btn" type="submit"><i class="fas fa-save"></i> Save Vendor</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Comparison</h2>
+                    <button class="btn ghost" onclick="renderComparison()"><i class="fas fa-table"></i> Refresh Table</button>
+                </div>
+                <div class="compare-wrap" id="comparison"></div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let questionnaire = [];
+        let offers = [];
+        let currentOfferId = null;
+        let currentOffer = null;
+
+        const scoreFields = ['technical', 'financial', 'trust', 'support'];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadQuestionnaire();
+            await loadOffers();
+            createNewOffer(false);
+            document.querySelectorAll('#scoreTechnical, #scoreFinancial, #scoreTrust, #scoreSupport')
+                .forEach(el => el.addEventListener('change', updateScoreTotal));
+        });
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        async function loadQuestionnaire() {
+            const response = await fetch('/api/vendor-questionnaire');
+            const payload = await response.json();
+            questionnaire = payload.sections || [];
+            renderQuestionnaire();
+        }
+
+        async function loadOffers() {
+            const response = await fetch('/api/vendor-offers');
+            const payload = await response.json();
+            offers = payload.offers || [];
+            renderVendorList();
+            renderComparison();
+            if (currentOfferId) {
+                const refreshed = offers.find(offer => offer.id === currentOfferId);
+                if (refreshed) setCurrentOffer(refreshed);
+            }
+        }
+
+        function renderVendorList() {
+            const el = document.getElementById('vendorList');
+            if (!offers.length) {
+                el.innerHTML = '<div class="empty">No vendors yet. Start with New Vendor.</div>';
+                return;
+            }
+
+            el.innerHTML = offers.map(offer => {
+                const total = computeScoreTotal(offer.score || {});
+                const active = offer.id === currentOfferId ? ' active' : '';
+                const date = offer.interview_date ? `Interview: ${escapeHtml(offer.interview_date)}` : 'No interview date';
+                return `
+                    <button class="vendor-card${active}" onclick="selectOffer(${offer.id})">
+                        <div class="vendor-name">
+                            <span>${escapeHtml(offer.vendor_name)}</span>
+                            <span class="score-pill">${total || '-'}/20</span>
+                        </div>
+                        <div class="vendor-meta">${escapeHtml(offer.status || 'Researching')} · ${date}</div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderQuestionnaire() {
+            const root = document.getElementById('questionnaire');
+            root.innerHTML = questionnaire.map(section => `
+                <section class="section">
+                    <h3>${escapeHtml(section.title)}</h3>
+                    <div class="question-grid">
+                        ${(section.questions || []).map(renderQuestion).join('')}
+                    </div>
+                </section>
+            `).join('');
+        }
+
+        function renderQuestion(question) {
+            const id = `answer_${question.id}`;
+            const common = `id="${id}" data-answer-id="${escapeHtml(question.id)}"`;
+            const unit = question.unit ? ` (${escapeHtml(question.unit)})` : '';
+            let input = '';
+
+            if (question.type === 'textarea') {
+                input = `<textarea ${common}></textarea>`;
+            } else if (question.type === 'select') {
+                input = `
+                    <select ${common}>
+                        <option value="">Unknown / not asked yet</option>
+                        ${(question.options || []).map(option => `<option>${escapeHtml(option)}</option>`).join('')}
+                    </select>
+                `;
+            } else {
+                const type = question.type === 'number' ? 'number' : 'text';
+                const step = question.type === 'number' ? ' step="any"' : '';
+                input = `<input ${common} type="${type}"${step}>`;
+            }
+
+            return `
+                <div class="field">
+                    <label for="${id}">${escapeHtml(question.label)}${unit}</label>
+                    ${input}
+                    ${question.help ? `<div class="field-help">${escapeHtml(question.help)}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function createNewOffer(clearStatus = true) {
+            currentOfferId = null;
+            currentOffer = {
+                vendor_name: '',
+                contact_name: '',
+                contact_email: '',
+                contact_phone: '',
+                website: '',
+                status: 'Researching',
+                interview_date: '',
+                summary: '',
+                answers: {},
+                score: {}
+            };
+            fillForm(currentOffer);
+            renderVendorList();
+            document.getElementById('deleteBtn').disabled = true;
+            document.getElementById('duplicateBtn').disabled = true;
+            if (clearStatus) setSaveStatus('New unsaved vendor.', '');
+        }
+
+        function selectOffer(id) {
+            const offer = offers.find(item => item.id === id);
+            if (!offer) return;
+            setCurrentOffer(offer);
+        }
+
+        function setCurrentOffer(offer) {
+            currentOffer = JSON.parse(JSON.stringify(offer));
+            currentOfferId = offer.id;
+            fillForm(currentOffer);
+            renderVendorList();
+            document.getElementById('deleteBtn').disabled = false;
+            document.getElementById('duplicateBtn').disabled = false;
+            setSaveStatus(`Loaded ${offer.vendor_name}.`, '');
+        }
+
+        function fillForm(offer) {
+            document.getElementById('vendorName').value = offer.vendor_name || '';
+            document.getElementById('status').value = offer.status || 'Researching';
+            document.getElementById('interviewDate').value = offer.interview_date || '';
+            document.getElementById('contactName').value = offer.contact_name || '';
+            document.getElementById('contactEmail').value = offer.contact_email || '';
+            document.getElementById('contactPhone').value = offer.contact_phone || '';
+            document.getElementById('website').value = offer.website || '';
+            document.getElementById('summary').value = offer.summary || '';
+
+            const score = offer.score || {};
+            document.getElementById('scoreTechnical').value = score.technical || '';
+            document.getElementById('scoreFinancial').value = score.financial || '';
+            document.getElementById('scoreTrust').value = score.trust || '';
+            document.getElementById('scoreSupport').value = score.support || '';
+            updateScoreTotal();
+
+            const answers = offer.answers || {};
+            document.querySelectorAll('[data-answer-id]').forEach(input => {
+                input.value = answers[input.dataset.answerId] ?? '';
+            });
+        }
+
+        function collectForm() {
+            const answers = {};
+            document.querySelectorAll('[data-answer-id]').forEach(input => {
+                answers[input.dataset.answerId] = input.value;
+            });
+
+            return {
+                vendor_name: document.getElementById('vendorName').value,
+                status: document.getElementById('status').value,
+                interview_date: document.getElementById('interviewDate').value,
+                contact_name: document.getElementById('contactName').value,
+                contact_email: document.getElementById('contactEmail').value,
+                contact_phone: document.getElementById('contactPhone').value,
+                website: document.getElementById('website').value,
+                summary: document.getElementById('summary').value,
+                answers,
+                score: {
+                    technical: document.getElementById('scoreTechnical').value,
+                    financial: document.getElementById('scoreFinancial').value,
+                    trust: document.getElementById('scoreTrust').value,
+                    support: document.getElementById('scoreSupport').value
+                }
+            };
+        }
+
+        async function saveOffer(event) {
+            event.preventDefault();
+            const payload = collectForm();
+            const url = currentOfferId ? `/api/vendor-offers/${currentOfferId}` : '/api/vendor-offers';
+            const method = currentOfferId ? 'PUT' : 'POST';
+            setSaveStatus('Saving...', '');
+
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                setSaveStatus(result.error || 'Save failed', 'error');
+                return;
+            }
+
+            const saved = result.offer;
+            const index = offers.findIndex(offer => offer.id === saved.id);
+            if (index >= 0) {
+                offers[index] = saved;
+            } else {
+                offers.unshift(saved);
+            }
+            setCurrentOffer(saved);
+            renderComparison();
+            setSaveStatus(`Saved ${saved.vendor_name}.`, 'success');
+        }
+
+        function resetFormToCurrent() {
+            fillForm(currentOffer || {});
+            setSaveStatus('Reset form to loaded values.', '');
+        }
+
+        async function deleteCurrentOffer() {
+            if (!currentOfferId || !currentOffer) return;
+            if (!confirm(`Delete ${currentOffer.vendor_name}?`)) return;
+            const response = await fetch(`/api/vendor-offers/${currentOfferId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const result = await response.json();
+                setSaveStatus(result.error || 'Delete failed', 'error');
+                return;
+            }
+            offers = offers.filter(offer => offer.id !== currentOfferId);
+            createNewOffer(false);
+            renderVendorList();
+            renderComparison();
+            setSaveStatus('Vendor deleted.', 'success');
+        }
+
+        function duplicateOffer() {
+            if (!currentOffer) return;
+            const copy = JSON.parse(JSON.stringify(currentOffer));
+            delete copy.id;
+            copy.vendor_name = `${copy.vendor_name || 'Vendor'} copy`;
+            currentOfferId = null;
+            currentOffer = copy;
+            fillForm(copy);
+            renderVendorList();
+            document.getElementById('deleteBtn').disabled = true;
+            document.getElementById('duplicateBtn').disabled = true;
+            setSaveStatus('Duplicated locally. Save to keep it.', '');
+        }
+
+        function updateScoreTotal() {
+            const score = {
+                technical: document.getElementById('scoreTechnical').value,
+                financial: document.getElementById('scoreFinancial').value,
+                trust: document.getElementById('scoreTrust').value,
+                support: document.getElementById('scoreSupport').value
+            };
+            document.getElementById('scoreTotal').value = `${computeScoreTotal(score) || 0} / 20`;
+        }
+
+        function computeScoreTotal(score) {
+            return scoreFields.reduce((sum, key) => {
+                const value = Number(score && score[key]);
+                return sum + (Number.isFinite(value) ? value : 0);
+            }, 0);
+        }
+
+        function compareQuestions() {
+            return questionnaire.flatMap(section =>
+                (section.questions || [])
+                    .filter(question => question.compare)
+                    .map(question => ({ ...question, sectionTitle: section.title }))
+            );
+        }
+
+        function renderComparison() {
+            const root = document.getElementById('comparison');
+            if (!offers.length) {
+                root.innerHTML = '<div class="empty">Save at least one vendor to build a comparison table.</div>';
+                return;
+            }
+
+            const rows = [
+                { label: 'Status', get: offer => offer.status },
+                { label: 'Total score', get: offer => `${computeScoreTotal(offer.score || {}) || 0}/20` },
+                { label: 'Summary', get: offer => offer.summary },
+                ...compareQuestions().map(question => ({
+                    label: question.label,
+                    get: offer => (offer.answers || {})[question.id]
+                }))
+            ];
+
+            root.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            ${offers.map(offer => `<th>${escapeHtml(offer.vendor_name)}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(row => `
+                            <tr>
+                                <td class="metric">${escapeHtml(row.label)}</td>
+                                ${offers.map(offer => `<td><div class="compact-value">${escapeHtml(row.get(offer) || '-')}</div></td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function setSaveStatus(message, kind) {
+            const el = document.getElementById('saveStatus');
+            el.textContent = message;
+            el.className = `status ${kind || ''}`.trim();
+        }
+    </script>
+</body>
+</html>
